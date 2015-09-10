@@ -40,10 +40,12 @@ class Im2colKernelTest : public GPUDeviceTest<Dtype> {
     width_ = blob_bottom_->width();
     channels_ = blob_bottom_->channels();
     pad_ = 0;
+	hole_ = 1;
     stride_ = 2;
     kernel_size_ = 3;
-    height_col_ = (height_ + 2 * pad_ - kernel_size_) / stride_ + 1;
-    width_col_ = (width_ + 2 * pad_ - kernel_size_) / stride_ + 1;
+	kernel_size_eff_ = kernel_size_ + (kernel_size_ - 1) * (hole_ - 1);
+    height_col_ = (height_ + 2 * pad_ - kernel_size_eff_) / stride_ + 1;
+    width_col_ = (width_ + 2 * pad_ - kernel_size_eff_) / stride_ + 1;
   }
 
   virtual ~Im2colKernelTest() {
@@ -59,8 +61,10 @@ class Im2colKernelTest : public GPUDeviceTest<Dtype> {
   int width_;
   int channels_;
   int pad_;
+  int hole_;
   int stride_;
   int kernel_size_;
+  int kernel_size_eff_;
   int height_col_;
   int width_col_;
 };
@@ -88,7 +92,7 @@ TYPED_TEST(Im2colKernelTest, TestGPU) {
     im2col_cpu(this->blob_bottom_->cpu_data() + this->blob_bottom_->offset(n),
       this->channels_, this->height_, this->width_,
       this->kernel_size_, this->kernel_size_, this->pad_, this->pad_,
-      this->stride_, this->stride_,
+      this->stride_, this->stride_, this->hole_, this->hole_,
       cpu_data + this->blob_top_cpu_->offset(n));
   }
 

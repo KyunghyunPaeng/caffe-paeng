@@ -39,6 +39,13 @@ void Im2colLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     pad_h_ = conv_param.pad_h();
     pad_w_ = conv_param.pad_w();
   }
+  // hole params.
+  if (!conv_param.has_hole_h()) {
+    hole_h_ = hole_w_ = conv_param.hole();
+  } else {
+    hole_h_ = conv_param.hole_h();
+    hole_w_ = conv_param.hole_w();
+  }
   if (!conv_param.has_stride_h()) {
     stride_h_ = stride_w_ = conv_param.stride();
   } else {
@@ -55,10 +62,12 @@ void Im2colLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   channels_ = bottom[0]->channels();
   height_ = bottom[0]->height();
   width_ = bottom[0]->width();
+  const int kernel_h_eff = kernel_h_ + (kernel_h_ - 1) * (hole_h_ - 1);
+  const int kernel_w_eff = kernel_w_ + (kernel_w_ - 1) * (hole_w_ - 1);
   top[0]->Reshape(
       bottom[0]->num(), channels_ * kernel_h_ * kernel_w_,
-      (height_ + 2 * pad_h_ - kernel_h_) / stride_h_ + 1,
-      (width_ + 2 * pad_w_ - kernel_w_) / stride_w_ + 1);
+      (height_ + 2 * pad_h_ - kernel_h_eff) / stride_h_ + 1,
+      (width_ + 2 * pad_w_ - kernel_w_eff) / stride_w_ + 1);
 }
 
 template <typename Dtype>
@@ -69,7 +78,7 @@ void Im2colLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for (int n = 0; n < bottom[0]->num(); ++n) {
     im2col_cpu(bottom_data + bottom[0]->offset(n), channels_, height_,
         width_, kernel_h_, kernel_w_, pad_h_, pad_w_,
-        stride_h_, stride_w_, top_data + top[0]->offset(n));
+        stride_h_, stride_w_, hole_h_, hole_w_, top_data + top[0]->offset(n));
   }
 }
 
@@ -81,7 +90,7 @@ void Im2colLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   for (int n = 0; n < top[0]->num(); ++n) {
     col2im_cpu(top_diff + top[0]->offset(n), channels_, height_, width_,
         kernel_h_, kernel_w_, pad_h_, pad_w_,
-        stride_h_, stride_w_, bottom_diff + bottom[0]->offset(n));
+        stride_h_, stride_w_, hole_h_, hole_w_, bottom_diff + bottom[0]->offset(n));
   }
 }
 

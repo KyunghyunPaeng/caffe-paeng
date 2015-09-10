@@ -64,7 +64,7 @@ layer {
   pooling_param {
     pool: MAX
     kernel_size: 2
-    stride: 2
+    stride: 1
   }
 }
 layer {
@@ -82,6 +82,7 @@ layer {
     num_output: 50
     kernel_size: 5
     stride: 1
+	hole: 2
     weight_filler {
       type: "xavier"
     }
