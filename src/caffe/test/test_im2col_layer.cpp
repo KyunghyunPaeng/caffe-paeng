@@ -58,12 +58,13 @@ TYPED_TEST(Im2colLayerTest, TestForward) {
       layer_param.mutable_convolution_param();
   convolution_param->set_kernel_size(3);
   convolution_param->set_stride(2);
+  convolution_param->set_hole(2);
   Im2colLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
   // We are lazy and will only check the top left block
   for (int c = 0; c < 27; ++c) {
-    EXPECT_EQ(this->blob_bottom_->data_at(0, (c / 9), (c / 3) % 3, c % 3),
+    EXPECT_EQ(this->blob_bottom_->data_at(0, (c / 9), ((c / 3) % 3)*2, (c % 3)*2),
         this->blob_top_->data_at(0, c, 0, 0));
   }
 }
@@ -75,6 +76,7 @@ TYPED_TEST(Im2colLayerTest, TestGradient) {
       layer_param.mutable_convolution_param();
   convolution_param->set_kernel_size(3);
   convolution_param->set_stride(2);
+  convolution_param->set_hole(2);
   Im2colLayer<Dtype> layer(layer_param);
   GradientChecker<Dtype> checker(1e-2, 1e-2);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,

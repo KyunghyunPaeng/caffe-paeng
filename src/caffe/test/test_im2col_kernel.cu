@@ -20,6 +20,7 @@ __global__ void im2col_gpu_kernel(const int n, const Dtype* data_im,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int height_col, const int width_col,
+	const int hole_h, const int hole_w,
     Dtype* data_col);
 
 extern cudaDeviceProp CAFFE_TEST_CUDA_PROP;
@@ -40,7 +41,7 @@ class Im2colKernelTest : public GPUDeviceTest<Dtype> {
     width_ = blob_bottom_->width();
     channels_ = blob_bottom_->channels();
     pad_ = 0;
-	hole_ = 1;
+	hole_ = 2;
     stride_ = 2;
     kernel_size_ = 3;
 	kernel_size_eff_ = kernel_size_ + (kernel_size_ - 1) * (hole_ - 1);
@@ -95,7 +96,24 @@ TYPED_TEST(Im2colKernelTest, TestGPU) {
       this->stride_, this->stride_, this->hole_, this->hole_,
       cpu_data + this->blob_top_cpu_->offset(n));
   }
-
+  // GPU Version
+  for (int n = 0; n < this->blob_bottom_->num(); ++n) {
+    im2col_gpu(this->blob_bottom_->gpu_data() + this->blob_bottom_->offset(n),
+      this->channels_, this->height_, this->width_,
+      this->kernel_size_, this->kernel_size_, this->pad_, this->pad_,
+      this->stride_, this->stride_, this->hole_, this->hole_,
+      top_data + this->blob_top_->offset(n));
+  }
+  // Compare results against CPU version
+  for (int i = 0; i < this->blob_top_->count(); ++i) {
+    TypeParam cpuval = cpu_data[i];
+    TypeParam gpuval = this->blob_top_->cpu_data()[i];
+    EXPECT_EQ(cpuval, gpuval);
+    if (cpuval != gpuval) {
+      break;
+    }
+  }
+/*
   // GPU version
   int num_kernels = this->channels_ * this->height_col_ * this->width_col_;
   int default_grid_dim = CAFFE_GET_BLOCKS(num_kernels);
@@ -110,6 +128,7 @@ TYPED_TEST(Im2colKernelTest, TestGPU) {
         this->height_, this->width_, this->kernel_size_, this->kernel_size_,
         this->pad_, this->pad_, this->stride_, this->stride_,
         this->height_col_, this->width_col_,
+		this->hole_, this->hole_,
         top_data + this->blob_top_->offset(n));
       CUDA_POST_KERNEL_CHECK;
     }
@@ -124,6 +143,44 @@ TYPED_TEST(Im2colKernelTest, TestGPU) {
       }
     }
   }
+*/
+/*
+  // GPU Version
+  for (int n = 0; n < this->blob_bottom_->num(); ++n) {
+    im2col_gpu(this->blob_bottom_->gpu_data() + this->blob_bottom_->offset(n),
+      this->channels_, this->height_, this->width_,
+      this->kernel_size_, this->kernel_size_, this->pad_, this->pad_,
+      this->stride_, this->stride_, this->hole_, this->hole_,
+      top_data + this->blob_top_->offset(n));
+  }
+  
+  // CPU Version
+  for (int n = 0; n < this->blob_top_->num(); ++n) {
+    col2im_cpu(this->blob_top_cpu_->cpu_data() + this->blob_top_cpu_->offset(n),
+      this->channels_, this->height_, this->width_,
+      this->kernel_size_, this->kernel_size_, this->pad_, this->pad_,
+      this->stride_, this->stride_, this->hole_, this->hole_,
+      this->blob_bottom_->mutable_cpu_data() + this->blob_bottom_->offset(n));
+  }
+  const TypeParam* cpu_b_data = this->blob_bottom_->cpu_data();
+  // GPU Version
+  for (int n = 0; n < this->blob_top_->num(); ++n) {
+    col2im_gpu(this->blob_top_->gpu_data() + this->blob_top_->offset(n),
+      this->channels_, this->height_, this->width_,
+      this->kernel_size_, this->kernel_size_, this->pad_, this->pad_,
+      this->stride_, this->stride_, this->hole_, this->hole_,
+      this->blob_bottom_->mutable_gpu_data() + this->blob_bottom_->offset(n));
+  }
+  // Compare results against CPU version
+  for (int i = 0; i < this->blob_bottom_->count(); ++i) {
+    TypeParam cpuval = cpu_b_data[i];
+    TypeParam gpuval = this->blob_bottom_->cpu_data()[i];
+    EXPECT_EQ(cpuval, gpuval);
+    if (cpuval != gpuval) {
+      break;
+    }
+  }
+*/
 }
 
 }  // namespace caffe

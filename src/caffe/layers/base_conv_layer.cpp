@@ -68,9 +68,10 @@ void BaseConvolutionLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   CHECK_EQ(channels_ % group_, 0);
   CHECK_EQ(num_output_ % group_, 0)
       << "Number of output should be multiples of group.";
-  if (reverse_dimensions()) {
+  if (reverse_dimensions()) { // if deconv layer
     conv_out_channels_ = channels_;
     conv_in_channels_ = num_output_;
+	hole_h_ = hole_w_ = 1; // force hole value
   } else {
     conv_out_channels_ = num_output_;
     conv_in_channels_ = channels_;
