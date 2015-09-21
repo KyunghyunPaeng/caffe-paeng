@@ -417,6 +417,8 @@ message LossParameter {
   // If true, normalize each batch across all instances (including spatial
   // dimesions, but not ignored instances); else, divide by batch size only.
   optional bool normalize = 2 [default = true];
+  // for loss weighting scheme
+  optional string weight_source = 3;
 }
 
 // Messages that store parameters used by individual layer types follow, in
