@@ -22,6 +22,10 @@ void SoftmaxWithLossLayer<Dtype>::LayerSetUp(
   softmax_top_vec_.push_back(&prob_);
   softmax_layer_->SetUp(softmax_bottom_vec_, softmax_top_vec_);
   
+  has_attention_net_ = this->layer_param_.loss_param().has_attention_net_ignore_label();
+  if (has_attention_net_) {
+    attention_net_ = this->layer_param_.loss_param().attention_net_ignore_label();
+  }
   has_ignore_label_ =
     this->layer_param_.loss_param().has_ignore_label();
   if (has_ignore_label_) {
@@ -89,6 +93,9 @@ void SoftmaxWithLossLayer<Dtype>::Forward_cpu(
   for (int i = 0; i < outer_num_; ++i) {
     for (int j = 0; j < inner_num_; j++) {
       const int label_value = static_cast<int>(label[i * inner_num_ + j]);
+	  if (has_attention_net_ && label_value == attention_net_ ) { // skip loss computation for training attention net
+        continue;
+      }
       if (has_ignore_label_ && label_value == ignore_label_) {
         continue;
       }
@@ -100,6 +107,7 @@ void SoftmaxWithLossLayer<Dtype>::Forward_cpu(
       weight_sum += weight[label_value];
     }
   }
+  if (weight_sum == 0) weight_sum = Dtype(1); // to avoid zero division
   if (normalize_) {
     top[0]->mutable_cpu_data()[0] = loss / weight_sum;
   } else {
@@ -129,7 +137,11 @@ void SoftmaxWithLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     for (int i = 0; i < outer_num_; ++i) {
       for (int j = 0; j < inner_num_; ++j) {
         const int label_value = static_cast<int>(label[i * inner_num_ + j]);
-        if (has_ignore_label_ && label_value == ignore_label_) {
+	    if (has_attention_net_ && label_value == attention_net_ ) { // skip loss computation for training attention net
+          for (int c = 0; c < bottom[0]->shape(softmax_axis_); ++c) {
+            bottom_diff[i * dim + c * inner_num_ + j] = 0;
+          }
+        } else if (has_ignore_label_ && label_value == ignore_label_) {
           for (int c = 0; c < bottom[0]->shape(softmax_axis_); ++c) {
             bottom_diff[i * dim + c * inner_num_ + j] = 0;
           }
@@ -145,6 +157,7 @@ void SoftmaxWithLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     }
     // Scale gradient
     const Dtype loss_weight = top[0]->cpu_diff()[0];
+    if (weight_sum == 0) weight_sum = Dtype(1); // to avoid zero division
     if (normalize_) {
       caffe_scal(prob_.count(), loss_weight / weight_sum, bottom_diff);
     } else {

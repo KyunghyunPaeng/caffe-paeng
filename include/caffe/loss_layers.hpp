@@ -765,6 +765,9 @@ class SoftmaxWithLossLayer : public LossLayer<Dtype> {
   /// Whether to normalize the loss by the total number of values present
   /// (otherwise just by the batch size).
   bool normalize_;
+  // for training attention net
+  bool has_attention_net_;
+  int attention_net_;
 
   int softmax_axis_, outer_num_, inner_num_;
   // for loss weights

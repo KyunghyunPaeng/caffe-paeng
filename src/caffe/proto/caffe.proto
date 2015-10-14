@@ -385,6 +385,7 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+  optional AttentionDataParameter attention_data_param = 139;
 }
 
 // Message that stores parameters used to apply transformation
@@ -419,6 +420,7 @@ message LossParameter {
   optional bool normalize = 2 [default = true];
   // for loss weighting scheme
   optional string weight_source = 3;
+  optional int32 attention_net_ignore_label = 4;
 }
 
 // Messages that store parameters used by individual layer types follow, in
@@ -938,6 +940,27 @@ message TileParameter {
 // Message that stores parameters used by ThresholdLayer
 message ThresholdParameter {
   optional float threshold = 1 [default = 0]; // Strictly positive values
+}
+
+message AttentionDataParameter {
+  // Specify the data source.
+  optional string source = 1;
+  // For data pre-processing, we can do simple scaling and subtracting the
+  // data mean, if provided. Note that the mean subtraction is always carried
+  // out before scaling.
+  optional float scale = 2 [default = 1];
+  // Specify the batch size.
+  optional uint32 batch_size = 4;
+  // Specify the number of classes. [except for background class!!]
+  optional uint32 num_class = 5; 
+  // Specify if we want to randomly mirror data.
+  optional bool mirror = 6 [default = false];
+  optional uint32 input_size = 7 [default = 224];
+  repeated float mean_value = 8;
+  // cache_images: will load all images in memory for faster access
+  optional bool cache_images = 12 [default = false];
+  // append root_folder to locate images
+  optional string root_folder = 13 [default = ""];
 }
 
 message WindowDataParameter {
