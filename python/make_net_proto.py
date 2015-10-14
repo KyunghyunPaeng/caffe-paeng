@@ -10,7 +10,7 @@ from caffe import params as P
 
 def conv_relu(bottom, ks, nout, stride=1, pad=0, group=1):
 	conv = L.Convolution(bottom, kernel_size=ks, stride=stride, num_output=nout, pad=pad, group=group,
-								param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)] )
+		   param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)] )
 	return conv, L.ReLU(conv, in_place=True)
 
 def max_pool(bottom, ks, stride=1):
@@ -19,8 +19,8 @@ def max_pool(bottom, ks, stride=1):
 def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 	net = caffe.NetSpec()
 	net.data, net.cls_label = L.AttentionData(root_folder="./", source="test", 
-										  batch_size=32, num_class=2, input_size=224, mirror=1,
-										  mean_value=[104,117,123], ntop=2)
+							  batch_size=32, num_class=2, input_size=224,
+							  mean_value=[104,117,123], ntop=2)
 	for i in range(num_classes) :
 		lname = "dir%d_TL_label"%(i)
 		net.tops[lname] = L.ReLU(net.data, in_place=False)
@@ -61,34 +61,34 @@ def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 	for i in range(num_classes) :
 		tname = "dir%d_TL"%(i)
 		net.tops[tname] = L.Convolution(net.drop7, kernel_size=1, num_output=4, 
-                                param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
-								weight_filler=dict(type='gaussian',std=0.01),
-								bias_filler=dict(type='constant',value=0) )
+                          param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+					      weight_filler=dict(type='gaussian',std=0.01),
+						  bias_filler=dict(type='constant',value=0) )
 		tname = "dir%d_BR"%(i)
 		net.tops[tname] = L.Convolution(net.drop7, kernel_size=1, num_output=4, 
-                                param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
-								weight_filler=dict(type='gaussian',std=0.01),
-								bias_filler=dict(type='constant',value=0) )
+                          param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+						  weight_filler=dict(type='gaussian',std=0.01),
+						  bias_filler=dict(type='constant',value=0) )
 	# final classification layer
 	net.cls = L.Convolution(net.drop7, kernel_size=1, num_output=num_classes+1, 
-                                param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
-								weight_filler=dict(type='gaussian',std=0.01),
-								bias_filler=dict(type='constant',value=0) )
+              param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+			  weight_filler=dict(type='gaussian',std=0.01),
+			  bias_filler=dict(type='constant',value=0) )
 	# loss layer creation
 	for i in range(num_classes) :
 		pname = "loss%d_TL"%(i)
 		tname = "dir%d_TL"%(i)
 		lname = "dir%d_TL_label"%(i)
 		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname],
-										loss_param=dict(attention_net_ignore_label=4) )
+						  loss_param=dict(attention_net_ignore_label=4) )
 		pname = "loss%d_BR"%(i)
 		tname = "dir%d_BR"%(i)
 		lname = "dir%d_BR_label"%(i)
 		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname],
-											loss_param=dict(attention_net_ignore_label=4) )
+						  loss_param=dict(attention_net_ignore_label=4) )
 	# classification loss layer
 	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label)
-	
+	# save prototxt file
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
 

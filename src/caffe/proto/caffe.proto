@@ -954,7 +954,6 @@ message AttentionDataParameter {
   // Specify the number of classes. [except for background class!!]
   optional uint32 num_class = 5; 
   // Specify if we want to randomly mirror data.
-  optional bool mirror = 6 [default = false];
   optional uint32 input_size = 7 [default = 224];
   repeated float mean_value = 8;
   // cache_images: will load all images in memory for faster access
