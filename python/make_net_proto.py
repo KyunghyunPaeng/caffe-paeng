@@ -10,16 +10,125 @@ from caffe import params as P
 
 def conv_relu(bottom, ks, nout, stride=1, pad=0, group=1):
 	conv = L.Convolution(bottom, kernel_size=ks, stride=stride, num_output=nout, pad=pad, group=group,
-		   param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)] )
+		   param=[dict(lr_mult=0.1, decay_mult=1),dict(lr_mult=0.2, decay_mult=0)] )
 	return conv, L.ReLU(conv, in_place=True)
 
-def max_pool(bottom, ks, stride=1):
-	return L.Pooling(bottom, pool=P.Pooling.MAX, kernel_size=ks, stride=stride)
+def max_pool(bottom, ks, stride=1, pad=0):
+	return L.Pooling(bottom, pool=P.Pooling.MAX, kernel_size=ks, stride=stride, pad=pad)
+
+def avg_pool(bottom, ks, stride=1, pad=0):
+	return L.Pooling(bottom, pool=P.Pooling.AVE, kernel_size=ks, stride=stride, pad=pad)
+
+def inception(net, base_name, bottom, nout1, nout3r, nout3, nout5r, nout5, noutp):
+	name1 = base_name + "/1x1"
+	name1_relu = base_name + "/relu_1x1"
+	net.tops[name1], net.tops[name1_relu] = conv_relu(bottom, 1, nout1)
+	name3r = base_name + "/3x3_reduce"
+	name3r_relu = base_name + "/relu_3x3_reduce"
+	net.tops[name3r], net.tops[name3r_relu] = conv_relu(bottom, 1, nout3r)
+	name3 = base_name + "/3x3"
+	name3_relu = base_name + "/relu_3x3"
+	net.tops[name3], net.tops[name3_relu] = conv_relu(net.tops[name3r], 3, nout3, pad=1)
+	name5r = base_name + "/5x5_reduce"
+	name5r_relu = base_name + "/relu_5x5_reduce"
+	net.tops[name5r], net.tops[name5r_relu] = conv_relu(bottom, 1, nout5r)
+	name5 = base_name + "/5x5"
+	name5_relu = base_name + "/relu_5x5"
+	net.tops[name5], net.tops[name5_relu] = conv_relu(net.tops[name5r], 5, nout5, pad=2)
+	namep = base_name + "/pool"
+	net.tops[namep] = max_pool(bottom, 3, pad=1)
+	namepp = base_name + "/pool_proj"
+	namepp_relu = base_name + "/relu_pool_proj"
+	net.tops[namepp], net.tops[namepp_relu] = conv_relu(net.tops[namep], 1, noutp)
+	nameo = base_name + "/output"
+	net.tops[nameo] = L.Concat(net.tops[name1],net.tops[name3],net.tops[name5],net.tops[namepp])
+	
+	return nameo
+
+def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size) :
+	net = caffe.NetSpec()
+	net.data, net.cls_label = L.AttentionData(root_folder="/data/PASCAL/VOCdevkit/VOC2007/", source="train.txt", 
+							  batch_size=batch_size, num_class=num_classes, input_size=224,
+							  mean_value=[104,117,123], ntop=2)
+
+	for i in range(num_classes) :
+		lname = "dir%d_TL_label"%(i)
+		net.tops[lname] = L.ReLU(net.data, in_place=False)
+		lname = "dir%d_BR_label"%(i)
+		net.tops[lname] = L.ReLU(net.data, in_place=False)
+	
+	# net start !!
+	cname1 = "conv1/7x7_s2"
+	rname1 = "conv1/relu_7x7"
+	net.tops[cname1], net.tops[rname1] = conv_relu(net.data, 7, 64, stride=2, pad=3)
+	pname1 = "pool1/3x3_s2"
+	net.tops[pname1] = max_pool(net.tops[cname1], 3, stride=2)
+	cname2_1 = "conv2/3x3_reduce"
+	rname2_1 = "conv2/relu_3x3_reduce"
+	net.tops[cname2_1], net.tops[rname2_1] = conv_relu(net.tops[pname1], 1, 64)
+	cname2_2 = "conv2/3x3"
+	rname2_2 = "conv2/relu_3x3"
+	net.tops[cname2_2], net.tops[rname2_2] = conv_relu(net.tops[cname2_1], 3, 192, pad=1)
+	pname2 = "pool2/3x3_s2"
+	net.tops[pname2] = max_pool(net.tops[cname2_2], 3, stride=2)
+	# inception start !!
+	out_name = inception(net, "inception_3a", net.tops[pname2], 64, 96, 128, 16, 32, 32)
+	out_name = inception(net, "inception_3b", net.tops[out_name], 128, 128, 192, 32, 96, 64)
+	pname3 = "pool3/3x3_s2"
+	net.tops[pname3] = max_pool(net.tops[out_name], 3, stride=2)
+	out_name = inception(net, "inception_4a", net.tops[pname3], 192, 96, 208, 16, 48, 64)
+	out_name = inception(net, "inception_4b", net.tops[out_name], 160, 112, 224, 24, 64, 64)
+	out_name = inception(net, "inception_4c", net.tops[out_name], 128, 128, 256, 24, 64, 64)
+	out_name = inception(net, "inception_4d", net.tops[out_name], 112, 144, 288, 32, 64, 64)
+	out_name = inception(net, "inception_4e", net.tops[out_name], 256, 160, 320, 32, 128, 128)
+	pname4 = "pool4/3x3_s2"
+	net.tops[pname4] = max_pool(net.tops[out_name], 3, stride=2)
+	out_name = inception(net, "inception_5a", net.tops[pname4], 256, 160, 320, 32, 128, 128)
+	out_name = inception(net, "inception_5b", net.tops[out_name], 384, 192, 384, 48, 128, 128)
+	pname5 = "pool5/7x7_s1"
+	net.tops[pname5] = avg_pool(net.tops[out_name], 7)
+	pname5_drop ="pool5/drop_7x7_s1"
+	net.tops[pname5_drop] = L.Dropout(net.tops[pname5], in_place=True)
+
+	# final layer creation
+	for i in range(num_classes) :
+		tname = "dir%d_TL"%(i)
+		net.tops[tname] = L.Convolution(net.tops[pname5], kernel_size=1, num_output=4, 
+                          param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+					      weight_filler=dict(type='gaussian',std=0.01),
+						  bias_filler=dict(type='constant',value=0) )
+		tname = "dir%d_BR"%(i)
+		net.tops[tname] = L.Convolution(net.tops[pname5], kernel_size=1, num_output=4, 
+                          param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+						  weight_filler=dict(type='gaussian',std=0.01),
+						  bias_filler=dict(type='constant',value=0) )
+	# final classification layer
+	net.cls = L.Convolution(net.tops[pname5], kernel_size=1, num_output=num_classes+1, 
+              param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+			  weight_filler=dict(type='gaussian',std=0.01),
+			  bias_filler=dict(type='constant',value=0) )
+	# loss layer creation
+	for i in range(num_classes) :
+		pname = "loss%d_TL"%(i)
+		tname = "dir%d_TL"%(i)
+		lname = "dir%d_TL_label"%(i)
+		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname],
+						  loss_param=dict(attention_net_ignore_label=4) )
+		pname = "loss%d_BR"%(i)
+		tname = "dir%d_BR"%(i)
+		lname = "dir%d_BR_label"%(i)
+		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname],
+						  loss_param=dict(attention_net_ignore_label=4) )
+	# classification loss layer
+	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label)
+	# save prototxt file
+	with open(file_name, 'w') as f:
+		print(net.to_proto(), file=f)
 
 def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 	net = caffe.NetSpec()
-	net.data, net.cls_label = L.AttentionData(root_folder="./", source="test", 
-							  batch_size=32, num_class=2, input_size=224,
+	net.data, net.cls_label = L.AttentionData(root_folder="/data/PASCAL/VOCdevkit/VOC2007/", source="train.txt", 
+							  batch_size=32, num_class=num_classes, input_size=224,
 							  mean_value=[104,117,123], ntop=2)
 	for i in range(num_classes) :
 		lname = "dir%d_TL_label"%(i)
@@ -92,9 +201,38 @@ def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
 
+def make_googlenet_attention(proto_file_name) :
+	num_classes = 20
+	batch_size = 32
+	file_name = "tmp_" + proto_file_name
+	make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size)
+	with open(file_name, 'r') as f :
+		proto_str = f.read()
+	layer_pattern = 'layer[\\s\\S]+?\\n}\\n'
+	layers = re.findall(layer_pattern, proto_str)
+	num_layer = len(layers)
+	input_layer = layers[0]
+	params = [k for k in input_layer.split('\n')]
+
+	with open(proto_file_name, 'w') as f:
+		for i in range(4) : 
+			print(params[i], file=f)
+		for i in range(num_classes) :
+			lname = "dir%d_TL_label"%(i)
+			f.write("  top: \"{}\"\n".format(lname))
+			lname = "dir%d_BR_label"%(i)
+			f.write("  top: \"{}\"\n".format(lname))
+		for i in xrange(4, len(params)) : 
+			print(params[i], file=f)
+
+		for i in range(num_layer) :
+			if i > 2*num_classes :
+				print(layers[i], file=f)
+	os.remove(file_name)
+
 def make_vgg16_attention(proto_file_name) :
-	num_classes = 2
-	batch_size = 1
+	num_classes = 20
+	batch_size = 32
 	file_name = "tmp_" + proto_file_name
 	make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size)
 	with open(file_name, 'r') as f :
@@ -123,7 +261,8 @@ def make_vgg16_attention(proto_file_name) :
 
 if __name__ == '__main__' :
 	prototxt_file_name = "train-all.prototxt"
-	make_vgg16_attention(prototxt_file_name)
+	#make_vgg16_attention(prototxt_file_name)
+	make_googlenet_attention(prototxt_file_name)
 
 
 

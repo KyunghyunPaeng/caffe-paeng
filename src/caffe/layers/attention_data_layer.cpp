@@ -111,7 +111,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 	  target_attention_.push_back(target_info); 
     }
 	
-    if (image_index % 100 == 0) {
+    if (image_index % 1000 == 0) {
       LOG(INFO) << "num: " << image_index << " "
           << image_path << " "
           << image_size[0] << " "
@@ -142,7 +142,6 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   // data mean
   has_mean_values_ = this->layer_param_.attention_data_param().mean_value_size() > 0;
-  LOG(INFO) << has_mean_values_;
   if (has_mean_values_) {
     for (int c = 0; c < this->layer_param_.attention_data_param().mean_value_size(); ++c) {
       mean_values_.push_back(this->layer_param_.attention_data_param().mean_value(c));
@@ -250,14 +249,12 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     	cv::resize(cv_cropped_img, cv_cropped_img, cv_crop_size, 0, 0, cv::INTER_LINEAR);
     }
     // horizontal flip at random
-    if (do_mirror) {
-      cv::flip(cv_cropped_img, cv_cropped_img, 1);
-    }
+    if (do_mirror) cv::flip(cv_cropped_img, cv_cropped_img, 1);
+    /*
 	LOG(INFO) << "mirroring... " << do_mirror;
 	cv::namedWindow("patch",1);
 	cv::imshow("patch", cv_cropped_img);
-	cv::waitKey(0);
-
+	cv::waitKey(0);*/
 	// copy the warped patch into top_data
 	Dtype* top_data = top[0]->mutable_cpu_data();
     for (int h = 0; h < cv_cropped_img.rows; ++h) {
