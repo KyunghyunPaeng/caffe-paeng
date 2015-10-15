@@ -10,6 +10,9 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+// for gpu resize..( under development )
+//using namespace std;
+//#include "opencv2/gpu/gpu.hpp"
 
 #include "caffe/common.hpp"
 #include "caffe/data_layers.hpp"
@@ -21,12 +24,10 @@
 
 // caffe.proto > LayerParameter > AttentionDataParameter
 //   'source' field specifies the window_file
-
 namespace caffe {
 
 template <typename Dtype>
 AttentionDataLayer<Dtype>::~AttentionDataLayer<Dtype>() {
-  //this->StopInternalThread();
 }
 
 template <typename Dtype>
@@ -243,18 +244,30 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       	cv::copyMakeBorder( cv_sub_img, cv_cropped_img, margin_t_y, margin_b_y, margin_l_x, margin_r_x, cv::BORDER_CONSTANT, value );
 		// warping
     	cv::resize(cv_cropped_img, cv_cropped_img, cv_crop_size, 0, 0, cv::INTER_LINEAR);
+		// for gpu resize..( under development )
+		//cv::gpu::GpuMat dst, src;
+		//src.upload(cv_cropped_img);
+		//cv::gpu::resize(src, dst, cv_crop_size);
+		//dst.download(cv_cropped_img);
 	} else { // if inner region in an image
 		cv::Rect roi(x1, y1, x2-x1+1, y2-y1+1);
 		cv_cropped_img = cv_img(roi);
     	cv::resize(cv_cropped_img, cv_cropped_img, cv_crop_size, 0, 0, cv::INTER_LINEAR);
+		// for gpu resize..( under development )
+		//cv::gpu::GpuMat dst, src;
+		//src.upload(cv_cropped_img);
+		//cv::gpu::resize(src, dst, cv_crop_size);
+		//dst.download(cv_cropped_img);
     }
     // horizontal flip at random
     if (do_mirror) cv::flip(cv_cropped_img, cv_cropped_img, 1);
-    /*
+
+/*  for visualizing patches
 	LOG(INFO) << "mirroring... " << do_mirror;
 	cv::namedWindow("patch",1);
 	cv::imshow("patch", cv_cropped_img);
-	cv::waitKey(0);*/
+	cv::waitKey(0);
+*/
 	// copy the warped patch into top_data
 	Dtype* top_data = top[0]->mutable_cpu_data();
     for (int h = 0; h < cv_cropped_img.rows; ++h) {

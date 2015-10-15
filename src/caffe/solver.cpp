@@ -387,7 +387,8 @@ void Solver<Dtype>::Test(const int test_net_id) {
       for (int j = 0; j < result.size(); ++j) {
         const Dtype* result_vec = result[j]->cpu_data();
         for (int k = 0; k < result[j]->count(); ++k) {
-          test_score[idx++] += result_vec[k];
+		  if(param_.test_attention()) test_score[idx++] = result_vec[k];
+          else test_score[idx++] += result_vec[k];
         }
       }
     }
@@ -406,7 +407,7 @@ void Solver<Dtype>::Test(const int test_net_id) {
     const string& output_name = test_net->blob_names()[output_blob_index];
     const Dtype loss_weight = test_net->blob_loss_weights()[output_blob_index];
     ostringstream loss_msg_stream;
-    const Dtype mean_score = test_score[i] / param_.test_iter(test_net_id);
+    const Dtype mean_score = param_.test_attention() ? test_score[i] : test_score[i] / param_.test_iter(test_net_id);
     if (loss_weight) {
       loss_msg_stream << " (* " << loss_weight
                       << " = " << loss_weight * mean_score << " loss)";

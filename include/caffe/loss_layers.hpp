@@ -92,6 +92,11 @@ class AccuracyLayer : public Layer<Dtype> {
   int ignore_label_;
   /// Keeps counts of the number of samples per class.
   Blob<Dtype> nums_buffer_;
+  // for attention net
+  int total_count_;
+  Dtype total_acc_;
+  bool has_attention_net_;
+  int attention_net_;
 };
 
 /**

@@ -234,6 +234,8 @@ message SolverParameter {
 
   // If false, don't save a snapshot after training finishes.
   optional bool snapshot_after_train = 28 [default = true];
+  // For computing attention net's direction loss/accuracy
+  optional bool test_attention = 40 [default = false];
 }
 
 // A message that stores the solver snapshots
@@ -441,6 +443,7 @@ message AccuracyParameter {
 
   // If specified, ignore instances with the given label.
   optional int32 ignore_label = 3;
+  optional int32 attention_net_ignore_label = 4;
 }
 
 message ArgMaxParameter {

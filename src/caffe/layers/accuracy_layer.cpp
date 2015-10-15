@@ -14,12 +14,17 @@ template <typename Dtype>
 void AccuracyLayer<Dtype>::LayerSetUp(
   const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   top_k_ = this->layer_param_.accuracy_param().top_k();
-
+  has_attention_net_ = this->layer_param_.accuracy_param().has_attention_net_ignore_label();
+  if (has_attention_net_) {
+    attention_net_ = this->layer_param_.accuracy_param().attention_net_ignore_label();
+  }
   has_ignore_label_ =
     this->layer_param_.accuracy_param().has_ignore_label();
   if (has_ignore_label_) {
     ignore_label_ = this->layer_param_.accuracy_param().ignore_label();
   }
+  total_count_ = 0;
+  total_acc_ = Dtype(0);
 }
 
 template <typename Dtype>
@@ -66,6 +71,9 @@ void AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     for (int j = 0; j < inner_num_; ++j) {
       const int label_value =
           static_cast<int>(bottom_label[i * inner_num_ + j]);
+      if (has_attention_net_ && label_value == attention_net_) {
+        continue;
+      }
       if (has_ignore_label_ && label_value == ignore_label_) {
         continue;
       }
@@ -93,13 +101,21 @@ void AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
   }
 
-  // LOG(INFO) << "Accuracy: " << accuracy;
-  top[0]->mutable_cpu_data()[0] = accuracy / count;
-  if (top.size() > 1) {
-    for (int i = 0; i < top[1]->count(); ++i) {
-      top[1]->mutable_cpu_data()[i] =
-          nums_buffer_.cpu_data()[i] == 0 ? 0
-          : top[1]->cpu_data()[i] / nums_buffer_.cpu_data()[i];
+  if( has_attention_net_ ) {
+    total_count_ += count;
+    total_acc_   += accuracy;
+    //LOG(INFO) << "Accuracy: " << total_acc_ << "  count: " << total_count_;
+    if(total_count_==0) top[0]->mutable_cpu_data()[0] = 0;
+    else                top[0]->mutable_cpu_data()[0] = total_acc_ / total_count_;
+  } else {
+    if(count==0) count=1;
+    top[0]->mutable_cpu_data()[0] = accuracy / count;
+    if (top.size() > 1) {
+      for (int i = 0; i < top[1]->count(); ++i) {
+        top[1]->mutable_cpu_data()[i] =
+            nums_buffer_.cpu_data()[i] == 0 ? 0
+            : top[1]->cpu_data()[i] / nums_buffer_.cpu_data()[i];
+	  }
     }
   }
   // Accuracy layer should not be used as a loss function.
