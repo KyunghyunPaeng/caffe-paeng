@@ -104,7 +104,7 @@ void AccuracyLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   if( has_attention_net_ ) {
     total_count_ += count;
     total_acc_   += accuracy;
-    //LOG(INFO) << "Accuracy: " << total_acc_ << "  count: " << total_count_;
+    LOG(INFO) << "Accuracy: " << total_acc_ << "  count: " << total_count_;
     if(total_count_==0) top[0]->mutable_cpu_data()[0] = 0;
     else                top[0]->mutable_cpu_data()[0] = total_acc_ / total_count_;
   } else {

@@ -55,17 +55,27 @@ void SoftmaxWithLossLayer<Dtype>::Forward_gpu(
       outer_num_, dim, inner_num_, has_ignore_label_, ignore_label_, has_attention_net_, attention_net_, counts, weight);
   Dtype loss;
   caffe_gpu_asum(nthreads, loss_data, &loss);
-  if (normalize_) {
+  if(has_attention_net_ && (this->phase_==TEST) ) {
     Dtype count;
     caffe_gpu_asum(nthreads, counts, &count);
-	if( count == Dtype(0) ) count = Dtype(1);
-    loss /= count;
+	total_count_ += count;
+	total_loss_  += loss;
+    // only normalize case !
+    if(total_count_==0) top[0]->mutable_cpu_data()[0] = 0;
+    else                top[0]->mutable_cpu_data()[0] = total_loss_/total_count_;
   } else {
-    loss /= outer_num_;
-  }
-  top[0]->mutable_cpu_data()[0] = loss;
-  if (top.size() == 2) {
-    top[1]->ShareData(prob_);
+    if (normalize_) {
+      Dtype count;
+      caffe_gpu_asum(nthreads, counts, &count);
+	  if( count == Dtype(0) ) count = Dtype(1);
+      loss /= count;
+    } else {
+      loss /= outer_num_;
+    }
+    top[0]->mutable_cpu_data()[0] = loss;
+    if (top.size() == 2) {
+      top[1]->ShareData(prob_);
+    }
   }
 }
 

@@ -32,6 +32,8 @@ void SoftmaxWithLossLayer<Dtype>::LayerSetUp(
     ignore_label_ = this->layer_param_.loss_param().ignore_label();
   }
   normalize_ = this->layer_param_.loss_param().normalize();
+  total_count_ = 0;
+  total_loss_ = Dtype(0);
   // loss weights..
   loss_weights_.Reshape(prob_.channels(),1,1,1);
   Dtype* weight = loss_weights_.mutable_cpu_data();
@@ -107,14 +109,22 @@ void SoftmaxWithLossLayer<Dtype>::Forward_cpu(
       weight_sum += weight[label_value];
     }
   }
-  if (weight_sum == 0) weight_sum = Dtype(1); // to avoid zero division
-  if (normalize_) {
-    top[0]->mutable_cpu_data()[0] = loss / weight_sum;
+  if( has_attention_net_ && (this->phase_ == TEST) ) { // for testing attention algorithm
+    total_count_ += weight_sum;
+    total_loss_  += loss;
+	// only normalize case !
+    if(total_count_==0) top[0]->mutable_cpu_data()[0] = 0;
+    else                top[0]->mutable_cpu_data()[0] = total_loss_/total_count_;
   } else {
-    top[0]->mutable_cpu_data()[0] = loss / outer_num_;
-  }
-  if (top.size() == 2) {
-    top[1]->ShareData(prob_);
+    if (weight_sum == 0) weight_sum = Dtype(1); // to avoid zero division
+    if (normalize_) {
+      top[0]->mutable_cpu_data()[0] = loss / weight_sum;
+    } else {
+      top[0]->mutable_cpu_data()[0] = loss / outer_num_;
+    }
+    if (top.size() == 2) {
+      top[1]->ShareData(prob_);
+    }
   }
 }
 
