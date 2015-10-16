@@ -224,7 +224,7 @@ void Solver<Dtype>::Step(int iters) {
     net_->set_debug_info(display && param_.debug_info());
     // accumulate the loss and gradient
     Dtype loss = 0;
-    for (int i = 0; i < param_.iter_size(); ++i) {
+    for (int i = 0; i < param_.iter_size(); ++i) { // param_.iter_size() = 1 [default setting]
       loss += net_->ForwardBackward(bottom_vec);
     }
     loss /= param_.iter_size();

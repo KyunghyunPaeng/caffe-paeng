@@ -177,7 +177,6 @@ def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_s
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
-						  #loss_param=dict(attention_net_ignore_label=4) )
 	# classification loss layer
 	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=0.33, 
 				   loss_param=dict(attention_net_ignore_label=-1) )
@@ -267,12 +266,11 @@ def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
-						  #loss_param=dict(attention_net_ignore_label=4) )
 	# classification loss layer
 	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=0.33, 
 				   loss_param=dict(attention_net_ignore_label=-1) )
 	net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
-				   include=dict(phase=1))
+				  include=dict(phase=1))
 	# save prototxt file
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
@@ -353,7 +351,6 @@ def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
-						  #loss_param=dict(attention_net_ignore_label=4) )
 	# classification loss layer
 	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=0.33, 
 				   loss_param=dict(attention_net_ignore_label=-1) )
