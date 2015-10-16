@@ -61,7 +61,7 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
   // Scaffolding code
   InitTrainNet();
   if (Caffe::root_solver()) {
-    InitTestNets();
+    if(!param_.test_attention()) InitTestNets();
     LOG(INFO) << "Solver scaffolding done.";
   }
   iter_ = 0;
@@ -333,6 +333,7 @@ void Solver<Dtype>::Solve(const char* resume_file) {
 
 template <typename Dtype>
 void Solver<Dtype>::TestAll() {
+  if(param_.test_attention()) InitTestNets();
   for (int test_net_id = 0;
        test_net_id < test_nets_.size() && !requested_early_exit_;
        ++test_net_id) {
