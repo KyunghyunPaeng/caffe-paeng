@@ -83,8 +83,8 @@ def get_attention_plot_information(train_dict, test_dict, num_class) :
 		dir_loss = 0
 		for k in xrange(2, len(dict_key)-1) :
 			dir_loss += train_dict[i][dict_key[k]]
-		train_dir_loss.append( dir_loss*0.33 )
-		train_cls_loss.append( train_dict[i][dict_key[k+1]]*0.33 )
+		train_dir_loss.append( dir_loss*(1./3.) )
+		train_cls_loss.append( train_dict[i][dict_key[k+1]]*(1./3.) )
 	train_plot = {}
 	train_plot['iter'] = train_iter
 	train_plot['dir_loss'] = train_dir_loss
@@ -108,8 +108,8 @@ def get_attention_plot_information(train_dict, test_dict, num_class) :
 		dir_loss = 0
 		for r in xrange(k+2, len(dict_key)-1) :
 			dir_loss += test_dict[i][dict_key[r]]
-		test_dir_loss.append( (dir_loss*0.33)/(num_class) )
-		test_cls_loss.append( test_dict[i][dict_key[r+1]]*0.33 )
+		test_dir_loss.append( (dir_loss*(1./3.))/(num_class) )
+		test_cls_loss.append( test_dict[i][dict_key[r+1]]*(1./3.) )
 	test_plot = {}
 	test_plot['iter'] = test_iter
 	test_plot['dir_acc'] = test_dir_acc
@@ -167,6 +167,8 @@ def plot_attention_acc(test_plot) :
 	pl.plot(acc_y, dir_acc, 'k-', label='DIR', linewidth=1.0, marker='.')
 	pl.plot(acc_y, cls_acc, 'r-', label='CLS', linewidth=1.0, marker='.')
 	pl.legend(loc='best')
+	print "DIR : " + str(1.0-dir_acc[-1])
+	print "CLS : " + str(1.0-cls_acc[-1])
 	pl.xlabel('Iter')
 	pl.title('Accuracy (%)')
 	pl.show()
@@ -176,7 +178,7 @@ if __name__ == '__main__':
 		print "training log file path.."
 		exit(1)
 	
-	path_to_log = sys.argv[1] #"bvlc_googlenet.log"
+	path_to_log = sys.argv[1]
 	train, test = get_log_information(path_to_log)
 	train, test = get_attention_plot_information(train, test, 20)
 	#plot_attention_loss(train, test)

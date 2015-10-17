@@ -12,8 +12,16 @@ from caffe import params as P
 
 def conv_relu(bottom, ks, nout, stride=1, pad=0, group=1):
 	conv = L.Convolution(bottom, kernel_size=ks, stride=stride, num_output=nout, pad=pad, group=group,
-		   param=[dict(lr_mult=0.1, decay_mult=1),dict(lr_mult=0.2, decay_mult=0)] )
+		   param=[dict(lr_mult=0.25, decay_mult=1),dict(lr_mult=0.5, decay_mult=0)] )
 	return conv, L.ReLU(conv, in_place=True)
+
+def conv_bn_relu(bottom, ks, nout, stride=1, pad=0, group=1):
+	conv = L.Convolution( bottom, kernel_size=ks, stride=stride, num_output=nout, pad=pad, group=group, bias_term=0,
+		   param=dict(lr_mult=0.25, decay_mult=1) ) #,dict(lr_mult=0.5, decay_mult=0)] )
+	bn = L.BN( conv, scale_filler=dict(type='constant',value=1), shift_filler=dict(type='constant',value=0),
+		   param=[dict(lr_mult=0.25, decay_mult=1),dict(lr_mult=0.5, decay_mult=0)] )
+	relu = L.ReLU( bn, in_place=True )
+	return conv, bn, relu
 
 def max_pool(bottom, ks, stride=1, pad=0):
 	return L.Pooling(bottom, pool=P.Pooling.MAX, kernel_size=ks, stride=stride, pad=pad)
@@ -23,56 +31,68 @@ def avg_pool(bottom, ks, stride=1, pad=0):
 
 def bn_inception_pass(net, base_name, bottom, nout3r, nout3, noutd3r, noutd3):
 	name3r = base_name + "/3x3_reduce"
+	name3r_bn = base_name + "/3x3_reduce/bn"
 	name3r_relu = base_name + "/relu_3x3_reduce"
-	net.tops[name3r], net.tops[name3r_relu] = conv_relu(bottom, 1, nout3r)
+	net.tops[name3r], net.tops[name3r_bn], net.tops[name3r_relu] = conv_bn_relu(bottom, 1, nout3r)
 	name3 = base_name + "/3x3"
+	name3_bn = base_name + "/3x3/bn"
 	name3_relu = base_name + "/relu_3x3"
-	net.tops[name3], net.tops[name3_relu] = conv_relu(net.tops[name3r], 3, nout3, stride=2, pad=1)
+	net.tops[name3], net.tops[name3_bn], net.tops[name3_relu] = conv_bn_relu(net.tops[name3r_bn], 3, nout3, stride=2, pad=1)
 	named3r = base_name + "/double3x3_reduce"
+	named3r_bn = base_name + "/double3x3_reduce/bn"
 	named3r_relu = base_name + "/relu_double3x3_reduce"
-	net.tops[named3r], net.tops[named3r_relu] = conv_relu(bottom, 1, noutd3r)
+	net.tops[named3r], net.tops[named3r_bn], net.tops[named3r_relu] = conv_bn_relu(bottom, 1, noutd3r)
 	named3a = base_name + "/double3x3a"
+	named3a_bn = base_name + "/double3x3a/bn"
 	named3a_relu = base_name + "/relu_double3x3a"
-	net.tops[named3a], net.tops[named3a_relu] = conv_relu(net.tops[named3r], 3, noutd3, stride=2, pad=1)
+	net.tops[named3a], net.tops[named3a_bn], net.tops[named3a_relu] = conv_bn_relu(net.tops[named3r_bn], 3, noutd3, pad=1)
 	named3b = base_name + "/double3x3b"
+	named3b_bn = base_name + "/double3x3b/bn"
 	named3b_relu = base_name + "/relu_double3x3b"
-	net.tops[named3b], net.tops[named3b_relu] = conv_relu(net.tops[named3a], 3, noutd3, stride=2, pad=1)
+	net.tops[named3b], net.tops[named3b_bn], net.tops[named3b_relu] = conv_bn_relu(net.tops[named3a_bn], 3, noutd3, stride=2, pad=1)
 	namep = base_name + "/pool/3x3_s2"
 	net.tops[namep] = max_pool(bottom, 3, stride=2)
 	nameo = base_name + "/output"
-	net.tops[nameo] = L.Concat(net.tops[name3],net.tops[named3b],net.tops[namep])
+	net.tops[nameo] = L.Concat(net.tops[name3_bn],net.tops[named3b_bn],net.tops[namep])
 	
 	return nameo
 
 def bn_inception(net, base_name, bottom, nout1, nout3r, nout3, noutd3r, noutd3, noutp, pool_method):
 	name1 = base_name + "/1x1"
+	name1_bn = base_name + "/1x1/bn"
 	name1_relu = base_name + "/relu_1x1"
-	net.tops[name1], net.tops[name1_relu] = conv_relu(bottom, 1, nout1)
+	net.tops[name1], net.tops[name1_bn], net.tops[name1_relu] = conv_bn_relu(bottom, 1, nout1)
 	name3r = base_name + "/3x3_reduce"
+	name3r_bn = base_name + "/3x3_reduce/bn"
 	name3r_relu = base_name + "/relu_3x3_reduce"
-	net.tops[name3r], net.tops[name3r_relu] = conv_relu(bottom, 1, nout3r)
+	net.tops[name3r], net.tops[name3r_bn], net.tops[name3r_relu] = conv_bn_relu(bottom, 1, nout3r)
 	name3 = base_name + "/3x3"
+	name3_bn = base_name + "/3x3/bn"
 	name3_relu = base_name + "/relu_3x3"
-	net.tops[name3], net.tops[name3_relu] = conv_relu(net.tops[name3r], 3, nout3, pad=1)
+	net.tops[name3], net.tops[name3_bn], net.tops[name3_relu] = conv_bn_relu(net.tops[name3r_bn], 3, nout3, pad=1)
 	named3r = base_name + "/double3x3_reduce"
+	named3r_bn = base_name + "/double3x3_reduce/bn"
 	named3r_relu = base_name + "/relu_double3x3_reduce"
-	net.tops[named3r], net.tops[named3r_relu] = conv_relu(bottom, 1, noutd3r)
+	net.tops[named3r], net.tops[named3r_bn], net.tops[named3r_relu] = conv_bn_relu(bottom, 1, noutd3r)
 	named3a = base_name + "/double3x3a"
+	named3a_bn = base_name + "/double3x3a/bn"
 	named3a_relu = base_name + "/relu_double3x3a"
-	net.tops[named3a], net.tops[named3a_relu] = conv_relu(net.tops[named3r], 3, noutd3, pad=1)
+	net.tops[named3a], net.tops[named3a_bn], net.tops[named3a_relu] = conv_bn_relu(net.tops[named3r_bn], 3, noutd3, pad=1)
 	named3b = base_name + "/double3x3b"
+	named3b_bn = base_name + "/double3x3b/bn"
 	named3b_relu = base_name + "/relu_double3x3b"
-	net.tops[named3b], net.tops[named3b_relu] = conv_relu(net.tops[named3a], 3, noutd3, pad=1)
+	net.tops[named3b], net.tops[named3b_bn], net.tops[named3b_relu] = conv_bn_relu(net.tops[named3a_bn], 3, noutd3, pad=1)
 	namep = base_name + "/pool"
 	if pool_method is 'max' :
 		net.tops[namep] = max_pool(bottom, 3, pad=1)
 	elif pool_method is 'avg' :
 		net.tops[namep] = avg_pool(bottom, 3, pad=1)
 	namepp = base_name + "/pool_proj"
+	namepp_bn = base_name + "/pool_proj/bn"
 	namepp_relu = base_name + "/relu_pool_proj"
-	net.tops[namepp], net.tops[namepp_relu] = conv_relu(net.tops[namep], 1, noutp)
+	net.tops[namepp], net.tops[namepp_bn], net.tops[namepp_relu] = conv_bn_relu(net.tops[namep], 1, noutp)
 	nameo = base_name + "/output"
-	net.tops[nameo] = L.Concat(net.tops[name1],net.tops[name3],net.tops[named3b],net.tops[namepp])
+	net.tops[nameo] = L.Concat(net.tops[name1_bn],net.tops[name3_bn],net.tops[named3b_bn],net.tops[namepp_bn])
 	
 	return nameo
 
@@ -116,18 +136,21 @@ def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_s
 	
 	# net start !!
 	cname1 = "conv1/7x7_s2"
+	bname1 = "conv1/7x7_s2/bn"
 	rname1 = "conv1/relu_7x7"
-	net.tops[cname1], net.tops[rname1] = conv_relu(net.data, 7, 64, stride=2, pad=3)
+	net.tops[cname1], net.tops[bname1], net.tops[rname1] = conv_bn_relu(net.data, 7, 64, stride=2, pad=3 )
 	pname1 = "pool1/3x3_s2"
-	net.tops[pname1] = max_pool(net.tops[cname1], 3, stride=2)
+	net.tops[pname1] = max_pool(net.tops[bname1], 3, stride=2)
 	cname2_1 = "conv2/3x3_reduce"
+	bname2_1 = "conv2/3x3_reduce/bn"
 	rname2_1 = "conv2/relu_3x3_reduce"
-	net.tops[cname2_1], net.tops[rname2_1] = conv_relu(net.tops[pname1], 1, 64)
+	net.tops[cname2_1], net.tops[bname2_1], net.tops[rname2_1] = conv_bn_relu(net.tops[pname1], 1, 64)
 	cname2_2 = "conv2/3x3"
+	bname2_2 = "conv2/3x3/bn"
 	rname2_2 = "conv2/relu_3x3"
-	net.tops[cname2_2], net.tops[rname2_2] = conv_relu(net.tops[cname2_1], 3, 192, pad=1)
+	net.tops[cname2_2], net.tops[bname2_2], net.tops[rname2_2] = conv_bn_relu(net.tops[bname2_1], 3, 192, pad=1)
 	pname2 = "pool2/3x3_s2"
-	net.tops[pname2] = max_pool(net.tops[cname2_2], 3, stride=2)
+	net.tops[pname2] = max_pool(net.tops[bname2_2], 3, stride=2)
 	# inception start !!
 	out_name = bn_inception(net, "inception_3a", net.tops[pname2], 64, 64, 64, 64, 96, 32, 'avg')
 	out_name = bn_inception(net, "inception_3b", net.tops[out_name], 64, 64, 96, 64, 96, 64, 'avg')
@@ -165,7 +188,7 @@ def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_s
 		pname = "loss%d_TL"%(i)
 		tname = "dir%d_TL"%(i)
 		lname = "dir%d_TL_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=0.33,
+		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
@@ -173,12 +196,12 @@ def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_s
 		pname = "loss%d_BR"%(i)
 		tname = "dir%d_BR"%(i)
 		lname = "dir%d_BR_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=0.33,
+		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
 	# classification loss layer
-	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=0.33, 
+	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
 				   loss_param=dict(attention_net_ignore_label=-1) )
 	net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
 				   include=dict(phase=1))
@@ -254,7 +277,7 @@ def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size
 		pname = "loss%d_TL"%(i)
 		tname = "dir%d_TL"%(i)
 		lname = "dir%d_TL_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=0.33,
+		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
@@ -262,12 +285,12 @@ def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size
 		pname = "loss%d_BR"%(i)
 		tname = "dir%d_BR"%(i)
 		lname = "dir%d_BR_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=0.33,
+		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
 						  loss_param=dict(attention_net_ignore_label=4) )
 		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
 						  include=dict(phase=1))
 	# classification loss layer
-	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=0.33, 
+	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
 				   loss_param=dict(attention_net_ignore_label=-1) )
 	net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
 				  include=dict(phase=1))
@@ -405,5 +428,6 @@ def make_attention_prototxt(proto_file_name, model) :
 
 if __name__ == '__main__' :
 	prototxt_file_name = "train.prototxt"
-	make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet')
+	#make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet')
+	make_attention_prototxt(prototxt_file_name, 'googlenet_bn')
 
