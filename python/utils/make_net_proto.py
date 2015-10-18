@@ -209,7 +209,7 @@ def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_s
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
 
-def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size) :
+def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size, phase) :
 	net = caffe.NetSpec()
 	net.data, net.cls_label = L.AttentionData(root_folder="/data/PASCAL/VOCdevkit/VOC2007/", source="1__DATA/PASCAL/train.txt", 
 							  batch_size=batch_size, num_class=num_classes, input_size=224, cache_images=0,
@@ -271,29 +271,42 @@ def make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size
               param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
 			  weight_filler=dict(type='gaussian',std=0.01),
 			  bias_filler=dict(type='constant',value=0) )
-	# loss layer creation
-	for i in range(num_classes) :
-		cname = "acc%d_TL"%(i)
-		pname = "loss%d_TL"%(i)
-		tname = "dir%d_TL"%(i)
-		lname = "dir%d_TL_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
-						  loss_param=dict(attention_net_ignore_label=4) )
-		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
-						  include=dict(phase=1))
-		cname = "acc%d_BR"%(i)
-		pname = "loss%d_BR"%(i)
-		tname = "dir%d_BR"%(i)
-		lname = "dir%d_BR_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
-						  loss_param=dict(attention_net_ignore_label=4) )
-		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
-						  include=dict(phase=1))
-	# classification loss layer
-	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
-				   loss_param=dict(attention_net_ignore_label=-1) )
-	net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
-				  include=dict(phase=1))
+
+	if phase is 'TRAIN' :
+		# loss layer creation
+		for i in range(num_classes) :
+			cname = "acc%d_TL"%(i)
+			pname = "loss%d_TL"%(i)
+			tname = "dir%d_TL"%(i)
+			lname = "dir%d_TL_label"%(i)
+			net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
+							  loss_param=dict(attention_net_ignore_label=4) )
+			net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
+							  include=dict(phase=1))
+			cname = "acc%d_BR"%(i)
+			pname = "loss%d_BR"%(i)
+			tname = "dir%d_BR"%(i)
+			lname = "dir%d_BR_label"%(i)
+			net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
+							  loss_param=dict(attention_net_ignore_label=4) )
+			net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
+							  include=dict(phase=1))
+		# classification loss layer
+		net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
+					   loss_param=dict(attention_net_ignore_label=-1) )
+		net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
+					  include=dict(phase=1))
+	elif phase is 'TEST' :
+		for i in range(num_classes) :
+			pname = "prob%d_TL"%(i)
+			tname = "dir%d_TL"%(i)
+			net.tops[pname] = L.Softmax(net.tops[tname])
+			pname = "prob%d_BR"%(i)
+			tname = "dir%d_BR"%(i)
+			net.tops[pname] = L.Softmax(net.tops[tname])
+		# classification loss layer
+		net.prob_cls = L.Softmax(net.cls)
+	
 	# save prototxt file
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
@@ -383,7 +396,7 @@ def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
 
-def make_attention_prototxt(proto_file_name, model) :
+def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
 	num_classes = 20
 	batch_size = 32
 	file_name = "tmp_" + proto_file_name
@@ -391,7 +404,7 @@ def make_attention_prototxt(proto_file_name, model) :
 	if model is 'vgg16':
 		make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size)
 	elif model is 'bvlc_googlenet' :
-		make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size)
+		make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size, phase)
 	elif model is 'googlenet_bn' :
 		make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size)
 	
@@ -404,21 +417,22 @@ def make_attention_prototxt(proto_file_name, model) :
 	params = [k for k in input_layer.split('\n')]
 
 	with open(proto_file_name, 'w') as f:
-		for s in range(2) :
-			for i in range(4) : 
-				print(params[i], file=f)
-			for i in range(num_classes) :
-				lname = "dir%d_TL_label"%(i)
-				f.write("  top: \"{}\"\n".format(lname))
-				lname = "dir%d_BR_label"%(i)
-				f.write("  top: \"{}\"\n".format(lname))
-			print(params[4], file=f)
-			if s == 0 :
-				f.write("  include {\n    phase: TRAIN\n  }\n")
-			else :
-				f.write("  include {\n    phase: TEST\n  }\n")
-			for i in xrange(5, len(params)) : 
-				print(params[i], file=f)
+		if phase is 'TRAIN' :
+			for s in range(2) :
+				for i in range(4) : 
+					print(params[i], file=f)
+				for i in range(num_classes) :
+					lname = "dir%d_TL_label"%(i)
+					f.write("  top: \"{}\"\n".format(lname))
+					lname = "dir%d_BR_label"%(i)
+					f.write("  top: \"{}\"\n".format(lname))
+				print(params[4], file=f)
+				if s == 0 :
+					f.write("  include {\n    phase: TRAIN\n  }\n")
+				else :
+					f.write("  include {\n    phase: TEST\n  }\n")
+				for i in xrange(5, len(params)) : 
+					print(params[i], file=f)
 
 		for i in range(num_layer) :
 			if i > 2*num_classes :
@@ -427,7 +441,7 @@ def make_attention_prototxt(proto_file_name, model) :
 
 
 if __name__ == '__main__' :
-	prototxt_file_name = "train.prototxt"
-	#make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet')
-	make_attention_prototxt(prototxt_file_name, 'googlenet_bn')
+	prototxt_file_name = "test.prototxt"
+	make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet', 'TEST')
+	#make_attention_prototxt(prototxt_file_name, 'googlenet_bn')
 
