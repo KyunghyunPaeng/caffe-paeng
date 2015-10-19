@@ -122,7 +122,7 @@ def inception(net, base_name, bottom, nout1, nout3r, nout3, nout5r, nout5, noutp
 	
 	return nameo
 
-def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size) :
+def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size, phase) :
 	net = caffe.NetSpec()
 	net.data, net.cls_label = L.AttentionData(root_folder="/data/PASCAL/VOCdevkit/VOC2007/", source="1__DATA/PASCAL/train.txt", 
 							  batch_size=batch_size, num_class=num_classes, input_size=224, cache_images=0,
@@ -182,29 +182,40 @@ def make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_s
               param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
 			  weight_filler=dict(type='gaussian',std=0.01),
 			  bias_filler=dict(type='constant',value=0) )
-	# loss layer creation
-	for i in range(num_classes) :
-		cname = "acc%d_TL"%(i)
-		pname = "loss%d_TL"%(i)
-		tname = "dir%d_TL"%(i)
-		lname = "dir%d_TL_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
-						  loss_param=dict(attention_net_ignore_label=4) )
-		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
-						  include=dict(phase=1))
-		cname = "acc%d_BR"%(i)
-		pname = "loss%d_BR"%(i)
-		tname = "dir%d_BR"%(i)
-		lname = "dir%d_BR_label"%(i)
-		net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
-						  loss_param=dict(attention_net_ignore_label=4) )
-		net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
-						  include=dict(phase=1))
-	# classification loss layer
-	net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
-				   loss_param=dict(attention_net_ignore_label=-1) )
-	net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
-				   include=dict(phase=1))
+	if phase is 'TRAIN' :
+		# loss layer creation
+		for i in range(num_classes) :
+			cname = "acc%d_TL"%(i)
+			pname = "loss%d_TL"%(i)
+			tname = "dir%d_TL"%(i)
+			lname = "dir%d_TL_label"%(i)
+			net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
+							  loss_param=dict(attention_net_ignore_label=4) )
+			net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
+							  include=dict(phase=1))
+			cname = "acc%d_BR"%(i)
+			pname = "loss%d_BR"%(i)
+			tname = "dir%d_BR"%(i)
+			lname = "dir%d_BR_label"%(i)
+			net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
+							  loss_param=dict(attention_net_ignore_label=4) )
+			net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
+							  include=dict(phase=1))
+		# classification loss layer
+		net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
+					   loss_param=dict(attention_net_ignore_label=-1) )
+		net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
+					  include=dict(phase=1))
+	elif phase is 'TEST' :
+		for i in range(num_classes) :
+			pname = "prob%d_TL"%(i)
+			tname = "dir%d_TL"%(i)
+			net.tops[pname] = L.Softmax(net.tops[tname])
+			pname = "prob%d_BR"%(i)
+			tname = "dir%d_BR"%(i)
+			net.tops[pname] = L.Softmax(net.tops[tname])
+		# classification loss layer
+		net.prob_cls = L.Softmax(net.cls)
 	# save prototxt file
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
@@ -406,7 +417,7 @@ def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
 	elif model is 'bvlc_googlenet' :
 		make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size, phase)
 	elif model is 'googlenet_bn' :
-		make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size)
+		make_bn_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size, phase)
 	
 	with open(file_name, 'r') as f :
 		proto_str = f.read()
@@ -442,6 +453,6 @@ def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
 
 if __name__ == '__main__' :
 	prototxt_file_name = "test.prototxt"
-	make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet', 'TEST')
-	#make_attention_prototxt(prototxt_file_name, 'googlenet_bn')
+	#make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet', 'TEST')
+	make_attention_prototxt(prototxt_file_name, 'googlenet_bn', 'TEST')
 
