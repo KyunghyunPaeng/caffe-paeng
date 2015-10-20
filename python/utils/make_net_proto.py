@@ -268,23 +268,17 @@ def make_googlenet_more_nonlinear_prototxt_for_attention_net(file_name, num_clas
 	# three more non-linearity for direction loss
 	cname6 = "conv6"
 	rname6 = "conv6_relu"
-	net.tops[cname6], net.tops[rname6] = conv_relu(net.tops[pname5], 1, 64)
-	cname7 = "conv7"
-	rname7 = "conv7_relu"
-	net.tops[cname7], net.tops[rname7] = conv_relu(net.tops[cname6], 1, 128)
-	cname8 = "conv8"
-	rname8 = "conv8_relu"
-	net.tops[cname8], net.tops[rname8] = conv_relu(net.tops[cname7], 1, 256)
+	net.tops[cname6], net.tops[rname6] = conv_relu(net.tops[pname5], 1, 512)
 	
 	# final layer creation
 	for i in range(num_classes) :
 		tname = "dir%d_TL"%(i)
-		net.tops[tname] = L.Convolution(net.tops[cname8], kernel_size=1, num_output=4, 
+		net.tops[tname] = L.Convolution(net.tops[cname6], kernel_size=1, num_output=4, 
                           param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
 					      weight_filler=dict(type='gaussian',std=0.01),
 						  bias_filler=dict(type='constant',value=0) )
 		tname = "dir%d_BR"%(i)
-		net.tops[tname] = L.Convolution(net.tops[cname8], kernel_size=1, num_output=4, 
+		net.tops[tname] = L.Convolution(net.tops[cname6], kernel_size=1, num_output=4, 
                           param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
 						  weight_filler=dict(type='gaussian',std=0.01),
 						  bias_filler=dict(type='constant',value=0) )
