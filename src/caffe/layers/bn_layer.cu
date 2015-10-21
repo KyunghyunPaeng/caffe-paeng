@@ -36,11 +36,6 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       caffe_gpu_axpby(batch_statistic_.count(), Dtype(1./mini_batch_cnt_), batch_statistic_.gpu_data(), 
 		Dtype(mini_batch_cnt_-1)/Dtype(mini_batch_cnt_), this->blobs_[2]->mutable_gpu_data());
     }
-    // for debugging
-    //LOG(INFO) << "# MINI-BATCH : " << mini_batch_cnt_;
-    //Dtype mean;
-    //caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
-    //LOG(INFO) << "TRAIN: " << mean;
   }
   if (this->phase_ == TEST ) {
     // use average mean
