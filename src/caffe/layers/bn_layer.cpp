@@ -20,9 +20,7 @@ void BNLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   width_ = bottom[0]->width();
   // extract param
   var_eps_ = this->layer_param_.bn_param().var_eps();
-  decay_ = this->layer_param_.bn_param().decay();
-  moving_average_ = this->layer_param_.bn_param().moving_average();
-
+  mini_batch_cnt_ = 0;
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
 	  LOG(INFO) << "Skipping parameter initialization";
@@ -100,10 +98,17 @@ void BNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       spatial_statistic_.cpu_data(), batch_sum_multiplier_.cpu_data(), Dtype(0), batch_statistic_.mutable_cpu_data());
   // save mean 
   if( this->phase_ == TRAIN ) {
-	caffe_cpu_axpby(batch_statistic_.count(), decay_, batch_statistic_.cpu_data(), 
-      Dtype(1) - decay_, this->blobs_[2]->mutable_cpu_data());
+    // count number of mini-batches
+    mini_batch_cnt_++;
+    if(mini_batch_cnt_==1) {
+      caffe_copy(batch_statistic_.count(), batch_statistic_.cpu_data(), this->blobs_[2]->mutable_cpu_data());
+    } else { // average
+      // n+1 state : (mean_n+1 + n * mean_prev)/(n+1) -> mean_prev
+      caffe_cpu_axpby(batch_statistic_.count(), Dtype(1)/mini_batch_cnt_, batch_statistic_.cpu_data(), (mini_batch_cnt_-1)/Dtype(mini_batch_cnt_),
+	    this->blobs_[2]->mutable_cpu_data());
+    }
   }
-  if( this->phase_ == TEST && moving_average_ ) { // copy from saved batch mean
+  if( this->phase_ == TEST ) { // copy from saved batch mean
 	caffe_copy(batch_statistic_.count(), this->blobs_[2]->cpu_data(), batch_statistic_.mutable_cpu_data());
   }
   // put mean blob into buffer_blob_
@@ -127,10 +132,15 @@ void BNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	batch_sum_multiplier_.cpu_data(), Dtype(0), batch_statistic_.mutable_cpu_data());
   // save variance
   if (this->phase_ == TRAIN) {
-	caffe_cpu_axpby(batch_statistic_.count(), decay_, batch_statistic_.cpu_data(), Dtype(1) - decay_,
-	  this->blobs_[3]->mutable_cpu_data());
+    if(mini_batch_cnt_==1) {
+      caffe_copy(batch_statistic_.count(), batch_statistic_.cpu_data(), this->blobs_[3]->mutable_cpu_data());
+    } else { // average
+      // n+1 state : (var_n+1 + n * var_prev)/(n+1) -> var_prev
+      caffe_cpu_axpby(batch_statistic_.count(), Dtype(1)/mini_batch_cnt_, batch_statistic_.cpu_data(), (mini_batch_cnt_-1)/Dtype(mini_batch_cnt_),
+	    this->blobs_[3]->mutable_cpu_data());
+    }
   }
-  if (this->phase_ == TEST && moving_average_) {
+  if (this->phase_ == TEST ) {
 	caffe_copy(batch_statistic_.count(), this->blobs_[3]->cpu_data(), batch_statistic_.mutable_cpu_data());
   }
   // add eps

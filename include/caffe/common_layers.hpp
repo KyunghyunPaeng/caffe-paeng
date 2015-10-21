@@ -117,10 +117,8 @@ class BNLayer : public Layer<Dtype> {
   int width_;
   // eps
   Dtype var_eps_;
-  // decay 
-  Dtype decay_;
-  // moving average
-  bool moving_average_;
+  // for inference (unbiased mean & var)
+  int mini_batch_cnt_;
 };
 
 /**

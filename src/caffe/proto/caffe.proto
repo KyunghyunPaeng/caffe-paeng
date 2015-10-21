@@ -458,8 +458,6 @@ message BNParameter {
   optional FillerParameter scale_filler = 1; // The filler for the scale
   optional FillerParameter shift_filler = 2; // The filler for the shift
   optional float var_eps = 3 [default = 1e-10]; // The epsilon added to variance
-  optional bool moving_average = 4 [default = true]; // inference stage
-  optional float decay = 5 [default = 0.99]; // The factor for moving average
 }
 
 message ConcatParameter {

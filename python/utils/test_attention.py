@@ -21,7 +21,7 @@ class net_wrapper() :
 		self._num_class = (len(self._net_outputs)-1)/2
 		self._input_dim = np.array( self._net.blobs[self._net_input].data.shape )
 		self._mean = np.array([104,117,123]) # BGR order ...
-		self._data_root = '/data/PASCAL/VOCdevkit/VOC2007/'
+		self._data_root = '/data1/PASCAL/VOCdevkit/VOC2007/'
 		# for evaluation
 		self._dir_br_cnt = np.zeros( self._num_class ) 
 		self._dir_tl_cnt = np.zeros( self._num_class ) 
@@ -134,17 +134,17 @@ class net_wrapper() :
 if __name__ == '__main__' :
 
 	arch = 'bn_googlenet'
-	setting = 'default_lr_0.01'
+	setting = 'default_lr_cls'
 	
 	prototxt_path = '/home/paeng/projects/2__ILSVRC/ilsvrc15/0__ATTENTION/0__MODELS/' + arch + '/' + setting + '/test.prototxt'
-	model_path = '/home/paeng/projects/2__ILSVRC/ilsvrc15/0__ATTENTION/0__MODELS/' + arch + '/' + setting + '/ft_models/attention_voc_07_iter_19580.caffemodel'
+	model_path = '/home/paeng/projects/2__ILSVRC/ilsvrc15/0__ATTENTION/0__MODELS/' + arch + '/' + setting + '/ft_models/attention_voc_07_iter_1958.caffemodel'
 	val_file_path = '/home/paeng/projects/2__ILSVRC/ilsvrc15/0__ATTENTION/1__DATA/PASCAL/val.txt'
 	net = net_wrapper(prototxt_path, model_path, 0)
 	batch_size = net._input_dim[0]
 	net.load_attention_val(val_file_path)
 	for i in xrange(0,len(net._image_index),batch_size) :
 		net.run_forward(i)
-		if i%3200 is 0 :
+		if i%100 is 0 :
 			print '{} th patch is evaluated... {}'.format(i,len(net._image_index))
 			dir_acc = 0.
 			for k in range(20) :
