@@ -50,8 +50,6 @@ class ArgMaxLayer : public Layer<Dtype> {
  protected:
   /**
    * @param bottom input Blob vector (length 1)
-   *   -# @f$ (N \times C \times H \times W) @f$
-   *      the inputs @f$ x @f$
    * @param top output Blob vector (length 1)
    *   -# @f$ (N \times 1 \times K \times 1) @f$ or, if out_max_val
    *      @f$ (N \times 2 \times K \times 1) @f$
@@ -119,6 +117,7 @@ class BNLayer : public Layer<Dtype> {
   Dtype var_eps_;
   // for inference (unbiased mean & var)
   int mini_batch_cnt_;
+  bool unbiased_inference_;
 };
 
 /**

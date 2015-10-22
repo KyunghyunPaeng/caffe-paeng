@@ -20,6 +20,7 @@ void BNLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   width_ = bottom[0]->width();
   // extract param
   var_eps_ = this->layer_param_.bn_param().var_eps();
+  unbiased_inference_ = this->layer_param_.bn_param().unbiased_inference();
   mini_batch_cnt_ = 0;
   // Check if we need to set up the weights
   if (this->blobs_.size() > 0) {
@@ -108,7 +109,7 @@ void BNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	    this->blobs_[2]->mutable_cpu_data());
     }
   }
-  if( this->phase_ == TEST ) { // copy from saved batch mean
+  if( this->phase_ == TEST && unbiased_inference_) { // copy from saved batch mean
 	caffe_copy(batch_statistic_.count(), this->blobs_[2]->cpu_data(), batch_statistic_.mutable_cpu_data());
   }
   // put mean blob into buffer_blob_
@@ -140,7 +141,7 @@ void BNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	    this->blobs_[3]->mutable_cpu_data());
     }
   }
-  if (this->phase_ == TEST ) {
+  if( this->phase_ == TEST && unbiased_inference_) { // copy from saved batch mean
 	caffe_copy(batch_statistic_.count(), this->blobs_[3]->cpu_data(), batch_statistic_.mutable_cpu_data());
   }
   // add eps
