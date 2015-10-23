@@ -385,6 +385,7 @@ class AttentionDataLayer : public Layer<Dtype> {
   vector<std::pair<std::string, Datum > > image_database_cache_;
   int patch_id_;
   int total_patch_;
+  bool random_sampling_;
 };
 
 }  // namespace caffe

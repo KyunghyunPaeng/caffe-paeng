@@ -458,7 +458,7 @@ message BNParameter {
   optional FillerParameter scale_filler = 1; // The filler for the scale
   optional FillerParameter shift_filler = 2; // The filler for the shift
   optional float var_eps = 3 [default = 1e-10]; // The epsilon added to variance
-  optional bool unbiased_inference = 4 [default = false];
+  optional bool unbiased_inference = 4 [default = true];
 }
 
 message ConcatParameter {
@@ -972,6 +972,8 @@ message AttentionDataParameter {
   optional bool cache_images = 12 [default = false];
   // append root_folder to locate images
   optional string root_folder = 13 [default = ""];
+  // mini-batch generation scheme
+  optional bool random_sampling = 14 [default = true];
 }
 
 message WindowDataParameter {

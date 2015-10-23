@@ -36,6 +36,13 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       caffe_gpu_axpby(batch_statistic_.count(), Dtype(1./mini_batch_cnt_), batch_statistic_.gpu_data(), 
 		Dtype(mini_batch_cnt_-1)/Dtype(mini_batch_cnt_), this->blobs_[2]->mutable_gpu_data());
     }
+	//LOG(INFO) << "mini-batch count: " << mini_batch_cnt_;
+	//Dtype mean_of_mean;
+	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[2]->gpu_data(), &mean_of_mean);
+	//LOG(INFO) << "mean-of-mean: " << mean_of_mean;
+	//Dtype mean;
+	//caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
+	//LOG(INFO) << "current-mean: " << mean;
   }
   if (this->phase_ == TEST && unbiased_inference_ ) {
     // use average mean
@@ -69,6 +76,12 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       caffe_gpu_axpby(batch_statistic_.count(), Dtype(1./mini_batch_cnt_), batch_statistic_.gpu_data(), 
 		Dtype(mini_batch_cnt_-1)/Dtype(mini_batch_cnt_), this->blobs_[3]->mutable_gpu_data());
     }
+	//Dtype mean_of_mean;
+	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[3]->gpu_data(), &mean_of_mean);
+	//LOG(INFO) << "mean-of-var: " << mean_of_mean;
+	//Dtype mean;
+	//caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
+	//LOG(INFO) << "current-var: " << mean;
   }
   if (this->phase_ == TEST && unbiased_inference_ ) {
     // use average variance

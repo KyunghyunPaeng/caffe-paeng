@@ -49,6 +49,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   cache_images_ = this->layer_param_.attention_data_param().cache_images();
   string root_folder = this->layer_param_.attention_data_param().root_folder();
   num_class_ = this->layer_param_.attention_data_param().num_class();
+  random_sampling_ = this->layer_param_.attention_data_param().random_sampling();
   CHECK_EQ( 2*num_class_+2, top.size() ); // check configuration
   patch_id_ = 0;
   total_patch_ = 0;
@@ -175,6 +176,11 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     //sample a window
     timer.Start();
+	// if random sampling ...
+	if( random_sampling_ && this->phase_ == TRAIN ) {
+	  const unsigned int rand_index = PrefetchRand();
+	  patch_id_ = rand_index % total_patch_;
+	}
     vector<float> patch = target_attention_[patch_id_];
 	bool do_mirror = patch[5] == 1 ? true : false;
 	// check a current image index
