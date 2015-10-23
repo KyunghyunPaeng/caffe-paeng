@@ -374,7 +374,7 @@ class AttentionDataLayer : public Layer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
 
   shared_ptr<Caffe::RNG> prefetch_rng_;
-  vector<std::pair<std::string, vector<int> > > image_database_;
+  vector<std::string> image_database_;
   vector<vector<float> > target_attention_;
   Blob<Dtype> data_mean_;
   vector<Dtype> mean_values_;
@@ -386,36 +386,6 @@ class AttentionDataLayer : public Layer<Dtype> {
   int patch_id_;
   int total_patch_;
 };
-
-// prefetch version
-/*
-template <typename Dtype>
-class AttentionDataLayer : public BasePrefetchingDataLayer<Dtype> {
- public:
-  explicit AttentionDataLayer(const LayerParameter& param)
-      : BasePrefetchingDataLayer<Dtype>(param) {}
-  virtual ~AttentionDataLayer();
-  virtual void DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top);
-
-  virtual inline const char* type() const { return "AttentionData"; }
-  virtual inline int ExactNumBottomBlobs() const { return 0; }
-
- protected:
-  virtual void load_batch(Batch<Dtype>* batch);
-
-  shared_ptr<Caffe::RNG> prefetch_rng_;
-  vector<std::pair<std::string, vector<int> > > image_database_;
-  vector<vector<float> > target_attention_;
-  Blob<Dtype> data_mean_;
-  vector<Dtype> mean_values_;
-  bool has_mean_file_;
-  bool has_mean_values_;
-  bool cache_images_;
-  int num_class_;
-  vector<std::pair<std::string, Datum > > image_database_cache_;
-  int patch_id_;
-};*/
 
 }  // namespace caffe
 

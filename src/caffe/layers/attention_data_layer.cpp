@@ -37,9 +37,6 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   // repeated:
   //    # image_index
   //    img_path (abs path)
-  //    channels
-  //    height
-  //    width
   //    num_windows
   //    x1 y1 x2 y2 FLIP TL BR class_index
 
@@ -63,7 +60,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       << this->layer_param_.attention_data_param().source() << std::endl;
 
   string hashtag;
-  int image_index, channels;
+  int image_index;
   if (!(infile >> hashtag >> image_index)) {
     LOG(FATAL) << "Source file is empty";
   }
@@ -73,11 +70,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     string image_path;
     infile >> image_path;
     image_path = root_folder + image_path;
-    // read image dimensions
-    vector<int> image_size(3);
-    infile >> image_size[0] >> image_size[1] >> image_size[2];
-	channels = image_size[0];
-    image_database_.push_back(std::make_pair(image_path, image_size));
+    image_database_.push_back(image_path);
 
     if (cache_images_) {
       Datum datum;
@@ -112,9 +105,6 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     if (image_index % 1000 == 0) {
       LOG(INFO) << "num: " << image_index << " "
           << image_path << " "
-          << image_size[0] << " "
-          << image_size[1] << " "
-          << image_size[2] << " "
           << "attention data parsing... " << num_windows;
     }
   } while (infile >> hashtag >> image_index);
@@ -127,7 +117,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   const int input_size = this->layer_param_.attention_data_param().input_size();
   CHECK_GT(input_size, 0);
   const int batch_size = this->layer_param_.attention_data_param().batch_size();
-  top[0]->Reshape(batch_size, channels, input_size, input_size);
+  top[0]->Reshape(batch_size, 3, input_size, input_size);
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
@@ -144,11 +134,11 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     for (int c = 0; c < this->layer_param_.attention_data_param().mean_value_size(); ++c) {
       mean_values_.push_back(this->layer_param_.attention_data_param().mean_value(c));
     }
-    CHECK(mean_values_.size() == 1 || mean_values_.size() == channels) <<
-     "Specify either 1 mean_value or as many as channels: " << channels;
-    if (channels > 1 && mean_values_.size() == 1) {
+    CHECK(mean_values_.size() == 1 || mean_values_.size() == top[0]->channels() ) <<
+     "Specify either 1 mean_value or as many as channels: " << top[0]->channels() ;
+    if (top[0]->channels() > 1 && mean_values_.size() == 1) {
       // Replicate the mean_value for simplicity
-      for (int c = 1; c < channels; ++c) {
+      for (int c = 1; c < 3; ++c) {
         mean_values_.push_back(mean_values_[0]);
       }
     }
@@ -197,16 +187,16 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	  if( prev_image_id == curr_image_id ) image_reload = false;
 	  else	image_reload = true;
 	}
-    pair<std::string, vector<int> > image = image_database_[curr_image_id];
+    std::string image = image_database_[curr_image_id];
 	if ( image_reload ) {
       // load the image containing the window
       if (this->cache_images_) { // if an image is already loaded. (in memory)
         pair<std::string, Datum> image_cached = image_database_cache_[curr_image_id];
         cv_img = DecodeDatumToCVMat(image_cached.second, true);
       } else {
-        cv_img = cv::imread(image.first, CV_LOAD_IMAGE_COLOR);
+        cv_img = cv::imread(image, CV_LOAD_IMAGE_COLOR);
         if (!cv_img.data) {
-          LOG(ERROR) << "Could not open or find file " << image.first;
+          LOG(ERROR) << "Could not open or find file " << image;
           return;
         }
       }
@@ -246,8 +236,8 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
     // horizontal flip at random
     if (do_mirror) cv::flip(cv_cropped_img, cv_cropped_img, 1);
-
-/*  for visualizing patches
+/*
+    //for visualizing patches
 	LOG(INFO) << "mirroring... " << do_mirror;
 	cv::namedWindow("patch",1);
 	cv::imshow("patch", cv_cropped_img);
