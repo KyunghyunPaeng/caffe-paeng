@@ -27,26 +27,27 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_gemv<Dtype>(CblasTrans, num_, channels_, Dtype(1. / num_), spatial_statistic_.gpu_data(),
  	batch_sum_multiplier_.gpu_data(), Dtype(0), batch_statistic_.mutable_gpu_data());
   if (this->phase_ == TRAIN) {
-    // count number of mini-batch
-    mini_batch_cnt_++;
-    if(mini_batch_cnt_==1) {
-      caffe_copy(batch_statistic_.count(), batch_statistic_.gpu_data(), this->blobs_[2]->mutable_gpu_data());
-    } else { // average
-      // n+1 state : (mean_n+1 + n * mean_prev)/(n+1) -> mean_prev
-      caffe_gpu_axpby(batch_statistic_.count(), Dtype(1./mini_batch_cnt_), batch_statistic_.gpu_data(), 
-		Dtype(mini_batch_cnt_-1)/Dtype(mini_batch_cnt_), this->blobs_[2]->mutable_gpu_data());
-    }
-	//LOG(INFO) << "mini-batch count: " << mini_batch_cnt_;
-	//Dtype mean_of_mean;
-	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[2]->gpu_data(), &mean_of_mean);
-	//LOG(INFO) << "mean-of-mean: " << mean_of_mean;
-	//Dtype mean;
-	//caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
-	//LOG(INFO) << "current-mean: " << mean;
+	//caffe_gpu_axpby(batch_statistic_.count(), Dtype(0.99), batch_statistic_.gpu_data(), Dtype(0.01),
+	//		this->blobs_[2]->mutable_gpu_data());
   }
-  if (this->phase_ == TEST && unbiased_inference_ ) {
+  if (this->phase_ == TEST && compute_population_ ) {
+	if(mini_batch_cnt_==0) { // check starting point (initialization)
+	  caffe_gpu_set(channels_, Dtype(0), this->blobs_[2]->mutable_gpu_data()); // for mean of mean
+	  caffe_gpu_set(channels_, Dtype(0), this->blobs_[3]->mutable_gpu_data()); // for mean of variance
+	}
+	//Dtype mean;
+	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[2]->gpu_data(), &mean);
+	//LOG(INFO) << "test-mean: " << mean;
+    caffe_gpu_axpy(batch_statistic_.count(), Dtype(1./pop_iter_), batch_statistic_.gpu_data(), this->blobs_[2]->mutable_gpu_data());
+	// count number of mini-batch
+    mini_batch_cnt_++;
+  }
+  if( this->phase_ == TEST && !compute_population_ ) {
     // use average mean
     caffe_copy(batch_statistic_.count(), this->blobs_[2]->gpu_data(), batch_statistic_.mutable_gpu_data());
+	//Dtype mean;
+	//caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
+	//LOG(INFO) << "test-mean: " << mean;
   }
   // put mean blob into buffer_blob_
   caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_, channels_, 1, Dtype(1),
@@ -69,24 +70,24 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_gemv<Dtype>(CblasTrans, num_, channels_, Dtype(1. / num_), spatial_statistic_.gpu_data(),
 	batch_sum_multiplier_.gpu_data(), Dtype(0), batch_statistic_.mutable_gpu_data());
   if (this->phase_ == TRAIN) {
-    if(mini_batch_cnt_==1) {
-      caffe_copy(batch_statistic_.count(), batch_statistic_.gpu_data(), this->blobs_[3]->mutable_gpu_data());
-    } else { // average
-      // n+1 state : (var_n+1 + n * var_prev)/(n+1) -> var_prev
-      caffe_gpu_axpby(batch_statistic_.count(), Dtype(1./mini_batch_cnt_), batch_statistic_.gpu_data(), 
-		Dtype(mini_batch_cnt_-1)/Dtype(mini_batch_cnt_), this->blobs_[3]->mutable_gpu_data());
-    }
-	//Dtype mean_of_mean;
-	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[3]->gpu_data(), &mean_of_mean);
-	//LOG(INFO) << "mean-of-var: " << mean_of_mean;
-	//Dtype mean;
-	//caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
-	//LOG(INFO) << "current-var: " << mean;
+	//caffe_gpu_axpby(batch_statistic_.count(), Dtype(0.99), batch_statistic_.gpu_data(), Dtype(0.01),
+	//		this->blobs_[3]->mutable_gpu_data());
   }
-  if (this->phase_ == TEST && unbiased_inference_ ) {
+  if (this->phase_ == TEST && compute_population_ ) {
+	//Dtype mean;
+	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[3]->gpu_data(), &mean);
+	//LOG(INFO) << "test-var: " << mean;
+    caffe_gpu_axpy(batch_statistic_.count(), Dtype(1./pop_iter_), batch_statistic_.gpu_data(), this->blobs_[3]->mutable_gpu_data());
+	if( mini_batch_cnt_ >= pop_iter_ ) { // finish computing mean of mean & var
+	  mini_batch_cnt_ = 0;
+	  // unbiased variance
+	  Dtype m = Dtype(bottom[0]->count()/channels_);
+      caffe_gpu_scal(batch_statistic_.count(), m/(m-1), this->blobs_[3]->mutable_gpu_data());
+	}
+  }
+  if( this->phase_ == TEST && !compute_population_ ) {
     // use average variance
     caffe_copy(batch_statistic_.count(), this->blobs_[3]->gpu_data(), batch_statistic_.mutable_gpu_data());
-    //caffe_gpu_scal(batch_statistic_.count(), Dtype(64./63.), batch_statistic_.mutable_gpu_data());
   }
   // add eps
   caffe_gpu_add_scalar(batch_statistic_.count(), var_eps_, batch_statistic_.mutable_gpu_data());

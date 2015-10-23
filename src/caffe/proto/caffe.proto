@@ -458,7 +458,7 @@ message BNParameter {
   optional FillerParameter scale_filler = 1; // The filler for the scale
   optional FillerParameter shift_filler = 2; // The filler for the shift
   optional float var_eps = 3 [default = 1e-10]; // The epsilon added to variance
-  optional bool unbiased_inference = 4 [default = true];
+  optional int32 population_iter = 4;
 }
 
 message ConcatParameter {

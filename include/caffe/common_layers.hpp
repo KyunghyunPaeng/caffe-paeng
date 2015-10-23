@@ -117,7 +117,8 @@ class BNLayer : public Layer<Dtype> {
   Dtype var_eps_;
   // for inference (unbiased mean & var)
   int mini_batch_cnt_;
-  bool unbiased_inference_;
+  bool compute_population_;
+  int pop_iter_;
 };
 
 /**
