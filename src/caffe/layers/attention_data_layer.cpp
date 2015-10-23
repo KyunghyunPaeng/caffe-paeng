@@ -31,7 +31,6 @@ AttentionDataLayer<Dtype>::~AttentionDataLayer<Dtype>() {
 }
 
 template <typename Dtype>
-//void AttentionDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   // attention_file format
@@ -42,7 +41,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   //    height
   //    width
   //    num_windows
-  //    x1 y1 x2 y2 FLIP TL BR ... class_index
+  //    x1 y1 x2 y2 FLIP TL BR class_index
 
   LOG(INFO) << "Attention data layer:" << std::endl
       << "  cache_images: "
@@ -103,10 +102,8 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 	  target_info.push_back(x2);  target_info.push_back(y2);
 	  infile >> FLIP;
 	  target_info.push_back(FLIP);
-	  for (int c = 0; c < num_class_; ++c ) {
-	    infile >> TL >> BR;
-		target_info.push_back(TL);  target_info.push_back(BR);
-	  }
+	  infile >> TL >> BR;
+	  target_info.push_back(TL);  target_info.push_back(BR);
 	  infile >> CLS;
 	  target_info.push_back(CLS);
 	  target_attention_.push_back(target_info); 
@@ -201,7 +198,6 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	  else	image_reload = true;
 	}
     pair<std::string, vector<int> > image = image_database_[curr_image_id];
-	//LOG(INFO) << prev_image_id << ", " << curr_image_id;
 	if ( image_reload ) {
       // load the image containing the window
       if (this->cache_images_) { // if an image is already loaded. (in memory)
@@ -209,7 +205,6 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         cv_img = DecodeDatumToCVMat(image_cached.second, true);
       } else {
         cv_img = cv::imread(image.first, CV_LOAD_IMAGE_COLOR);
-		//LOG(INFO) << "Image reload";
         if (!cv_img.data) {
           LOG(ERROR) << "Could not open or find file " << image.first;
           return;
@@ -244,20 +239,10 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       	cv::copyMakeBorder( cv_sub_img, cv_cropped_img, margin_t_y, margin_b_y, margin_l_x, margin_r_x, cv::BORDER_CONSTANT, value );
 		// warping
     	cv::resize(cv_cropped_img, cv_cropped_img, cv_crop_size, 0, 0, cv::INTER_LINEAR);
-		// for gpu resize..( under development )
-		//cv::gpu::GpuMat dst, src;
-		//src.upload(cv_cropped_img);
-		//cv::gpu::resize(src, dst, cv_crop_size);
-		//dst.download(cv_cropped_img);
 	} else { // if inner region in an image
 		cv::Rect roi(x1, y1, x2-x1+1, y2-y1+1);
 		cv_cropped_img = cv_img(roi);
     	cv::resize(cv_cropped_img, cv_cropped_img, cv_crop_size, 0, 0, cv::INTER_LINEAR);
-		// for gpu resize..( under development )
-		//cv::gpu::GpuMat dst, src;
-		//src.upload(cv_cropped_img);
-		//cv::gpu::resize(src, dst, cv_crop_size);
-		//dst.download(cv_cropped_img);
     }
     // horizontal flip at random
     if (do_mirror) cv::flip(cv_cropped_img, cv_cropped_img, 1);
@@ -288,16 +273,20 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       }
     }
     trans_time += timer.MicroSeconds();
-    
 	// get patch direction label
   	for (int c = 0; c < this->num_class_; ++c ) {
 	  Dtype* top_label_TL = top[2*c+1]->mutable_cpu_data();
 	  Dtype* top_label_BR = top[2*c+2]->mutable_cpu_data();
-	  top_label_TL[item_id] = patch[6+2*c+0];
-	  top_label_BR[item_id] = patch[6+2*c+1];
+	  if( c == patch[8] ) { // target class
+	    top_label_TL[item_id] = patch[6];
+	    top_label_BR[item_id] = patch[7];
+	  } else { // ignore label
+	    top_label_TL[item_id] = 4;
+	    top_label_BR[item_id] = 4;
+	  }
 	}
 	Dtype* top_label = top[top.size()-1]->mutable_cpu_data();
-	top_label[item_id] = patch[6+2*this->num_class_];
+	top_label[item_id] = patch[8];
 	// get next patch
 	patch_id_++;
 	prev_image_id = curr_image_id;
