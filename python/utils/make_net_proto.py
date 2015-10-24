@@ -516,8 +516,8 @@ def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 		print(net.to_proto(), file=f)
 
 def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
-	num_classes = 20
-	batch_size = 32
+	num_classes = 200
+	batch_size = 64
 	file_name = "tmp_" + proto_file_name
 	
 	if model is 'vgg16':
@@ -562,7 +562,7 @@ def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
 
 
 if __name__ == '__main__' :
-	prototxt_file_name = "test.prototxt"
-	#make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet_more_nonlinear', 'TRAIN')
-	make_attention_prototxt(prototxt_file_name, 'googlenet_bn', 'TEST')
+	prototxt_file_name = "train.prototxt"
+	make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet', 'TRAIN')
+	#make_attention_prototxt(prototxt_file_name, 'googlenet_bn', 'TEST')
 

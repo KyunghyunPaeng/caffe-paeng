@@ -973,7 +973,7 @@ message AttentionDataParameter {
   // append root_folder to locate images
   optional string root_folder = 13 [default = ""];
   // mini-batch generation scheme
-  optional bool random_sampling = 14 [default = true];
+  optional bool random_sampling = 14 [default = false];
 }
 
 message WindowDataParameter {

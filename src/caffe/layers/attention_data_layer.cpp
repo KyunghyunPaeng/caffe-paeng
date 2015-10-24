@@ -62,24 +62,27 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   string hashtag;
   int image_index;
+  int epoch_cnt = 0;
   if (!(infile >> hashtag >> image_index)) {
     LOG(FATAL) << "Source file is empty";
   }
   do {
     CHECK_EQ(hashtag, "#");
+	if( image_index == 0 ) epoch_cnt++;
     // read image path
     string image_path;
     infile >> image_path;
-    image_path = root_folder + image_path;
-    image_database_.push_back(image_path);
-
-    if (cache_images_) {
-      Datum datum;
-      if (!ReadFileToDatum(image_path, &datum)) {
-        LOG(ERROR) << "Could not open or find file " << image_path;
-        return;
+	if( epoch_cnt == 1 ) {
+      image_path = root_folder + image_path;
+      image_database_.push_back(image_path);
+      if (cache_images_) {
+        Datum datum;
+        if (!ReadFileToDatum(image_path, &datum)) {
+          LOG(ERROR) << "Could not open or find file " << image_path;
+          return;
+        }
+        image_database_cache_.push_back(std::make_pair(image_path, datum));
       }
-      image_database_cache_.push_back(std::make_pair(image_path, datum));
     }
     // read each box
     int num_windows;
@@ -111,6 +114,8 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   } while (infile >> hashtag >> image_index);
 
   LOG(INFO) << "Number of images  : " << image_index+1;
+  LOG(INFO) << "# images : " << image_database_.size();
+  LOG(INFO) << "Total epochs : " << epoch_cnt;
   LOG(INFO) << "Number of windows : " << total_patch_;
   
   // prepare blobs' shape
