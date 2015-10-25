@@ -458,7 +458,7 @@ def make_vggm_prototxt_for_attention_net(file_name, num_classes, batch_size, pha
 	
 	net.conv6, net.relu6 = conv_relu(net.pool5, 6, 4096)
 	net.drop6 = L.Dropout(net.conv6, in_place=True)
-	net.conv7, net.relu7 = conv_relu(net.conv7, 1, 4096)
+	net.conv7, net.relu7 = conv_relu(net.conv6, 1, 4096)
 	net.drop7 = L.Dropout(net.conv7, in_place=True)
 
 	# final layer creation
