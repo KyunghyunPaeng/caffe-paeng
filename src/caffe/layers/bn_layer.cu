@@ -27,17 +27,14 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_gemv<Dtype>(CblasTrans, num_, channels_, Dtype(1. / num_), spatial_statistic_.gpu_data(),
  	batch_sum_multiplier_.gpu_data(), Dtype(0), batch_statistic_.mutable_gpu_data());
   if (this->phase_ == TRAIN) {
-	//caffe_gpu_axpby(batch_statistic_.count(), Dtype(0.99), batch_statistic_.gpu_data(), Dtype(0.01),
-	//		this->blobs_[2]->mutable_gpu_data());
+	caffe_gpu_axpby(batch_statistic_.count(), Dtype(0.95), batch_statistic_.gpu_data(), Dtype(0.05),
+			this->blobs_[2]->mutable_gpu_data());
   }
   if (this->phase_ == TEST && compute_population_ ) {
 	if(mini_batch_cnt_==0) { // check starting point (initialization)
 	  caffe_gpu_set(channels_, Dtype(0), this->blobs_[2]->mutable_gpu_data()); // for mean of mean
 	  caffe_gpu_set(channels_, Dtype(0), this->blobs_[3]->mutable_gpu_data()); // for mean of variance
 	}
-	//Dtype mean;
-	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[2]->gpu_data(), &mean);
-	//LOG(INFO) << "test-mean: " << mean;
     caffe_gpu_axpy(batch_statistic_.count(), Dtype(1./pop_iter_), batch_statistic_.gpu_data(), this->blobs_[2]->mutable_gpu_data());
 	// count number of mini-batch
     mini_batch_cnt_++;
@@ -70,13 +67,10 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   caffe_gpu_gemv<Dtype>(CblasTrans, num_, channels_, Dtype(1. / num_), spatial_statistic_.gpu_data(),
 	batch_sum_multiplier_.gpu_data(), Dtype(0), batch_statistic_.mutable_gpu_data());
   if (this->phase_ == TRAIN) {
-	//caffe_gpu_axpby(batch_statistic_.count(), Dtype(0.99), batch_statistic_.gpu_data(), Dtype(0.01),
-	//		this->blobs_[3]->mutable_gpu_data());
+	caffe_gpu_axpby(batch_statistic_.count(), Dtype(0.95), batch_statistic_.gpu_data(), Dtype(0.05),
+			this->blobs_[3]->mutable_gpu_data());
   }
   if (this->phase_ == TEST && compute_population_ ) {
-	//Dtype mean;
-	//caffe_gpu_asum(batch_statistic_.count(), this->blobs_[3]->gpu_data(), &mean);
-	//LOG(INFO) << "test-var: " << mean;
     caffe_gpu_axpy(batch_statistic_.count(), Dtype(1./pop_iter_), batch_statistic_.gpu_data(), this->blobs_[3]->mutable_gpu_data());
 	if( mini_batch_cnt_ >= pop_iter_ ) { // finish computing mean of mean & var
 	  mini_batch_cnt_ = 0;
@@ -88,6 +82,9 @@ void BNLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   if( this->phase_ == TEST && !compute_population_ ) {
     // use average variance
     caffe_copy(batch_statistic_.count(), this->blobs_[3]->gpu_data(), batch_statistic_.mutable_gpu_data());
+	//Dtype mean;
+	//caffe_gpu_asum(batch_statistic_.count(), batch_statistic_.gpu_data(), &mean);
+	//LOG(INFO) << "test-var: " << mean;
   }
   // add eps
   caffe_gpu_add_scalar(batch_statistic_.count(), var_eps_, batch_statistic_.mutable_gpu_data());

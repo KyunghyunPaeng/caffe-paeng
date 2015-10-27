@@ -26,7 +26,6 @@ void BNLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   mini_batch_cnt_ = 0;
   // Check if we need to set up the weights
-  LOG(INFO) << "blob size: " << this->blobs_.size();
   if (this->blobs_.size() > 0) {
 	  LOG(INFO) << "Skipping parameter initialization";
   } else {
@@ -103,18 +102,20 @@ void BNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       spatial_statistic_.cpu_data(), batch_sum_multiplier_.cpu_data(), Dtype(0), batch_statistic_.mutable_cpu_data());
   // save mean 
   if( this->phase_ == TRAIN ) {
-    // count number of mini-batches
-    mini_batch_cnt_++;
-    if(mini_batch_cnt_==1) {
-      caffe_copy(batch_statistic_.count(), batch_statistic_.cpu_data(), this->blobs_[2]->mutable_cpu_data());
-    } else { // average
-      // n+1 state : (mean_n+1 + n * mean_prev)/(n+1) -> mean_prev
-      caffe_cpu_axpby(batch_statistic_.count(), Dtype(1)/mini_batch_cnt_, batch_statistic_.cpu_data(), (mini_batch_cnt_-1)/Dtype(mini_batch_cnt_),
-	    this->blobs_[2]->mutable_cpu_data());
-    }
+	// moving average ?? ...
+	caffe_cpu_axpby(batch_statistic_.count(), Dtype(0.99), batch_statistic_.cpu_data(), Dtype(0.01),
+			this->blobs_[2]->mutable_cpu_data());
   }
   if( this->phase_ == TEST && compute_population_) { // copy from saved batch mean
-	caffe_copy(batch_statistic_.count(), this->blobs_[2]->cpu_data(), batch_statistic_.mutable_cpu_data());
+	if(mini_batch_cnt_==0) { // check starting point (initialization)
+	  caffe_set(channels_, Dtype(0), this->blobs_[2]->mutable_cpu_data()); // for mean of mean
+	  caffe_set(channels_, Dtype(0), this->blobs_[3]->mutable_cpu_data()); // for mean of variance
+	}
+    caffe_cpu_axpby(batch_statistic_.count(), Dtype(1./pop_iter_), batch_statistic_.cpu_data(), Dtype(1.), this->blobs_[2]->mutable_cpu_data());
+    mini_batch_cnt_++;
+  }
+  if( this->phase_ == TEST && !compute_population_ ) {
+    caffe_copy(batch_statistic_.count(), this->blobs_[2]->cpu_data(), batch_statistic_.mutable_cpu_data());
   }
   // put mean blob into buffer_blob_
   caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_, channels_, 1, Dtype(1),
@@ -137,16 +138,21 @@ void BNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	batch_sum_multiplier_.cpu_data(), Dtype(0), batch_statistic_.mutable_cpu_data());
   // save variance
   if (this->phase_ == TRAIN) {
-    if(mini_batch_cnt_==1) {
-      caffe_copy(batch_statistic_.count(), batch_statistic_.cpu_data(), this->blobs_[3]->mutable_cpu_data());
-    } else { // average
-      // n+1 state : (var_n+1 + n * var_prev)/(n+1) -> var_prev
-      caffe_cpu_axpby(batch_statistic_.count(), Dtype(1)/mini_batch_cnt_, batch_statistic_.cpu_data(), (mini_batch_cnt_-1)/Dtype(mini_batch_cnt_),
-	    this->blobs_[3]->mutable_cpu_data());
-    }
+	caffe_cpu_axpby(batch_statistic_.count(), Dtype(0.99), batch_statistic_.cpu_data(), Dtype(0.01),
+			this->blobs_[3]->mutable_cpu_data());
   }
   if( this->phase_ == TEST && compute_population_) { // copy from saved batch var
-	caffe_copy(batch_statistic_.count(), this->blobs_[3]->cpu_data(), batch_statistic_.mutable_cpu_data());
+    caffe_cpu_axpby(batch_statistic_.count(), Dtype(1./pop_iter_), batch_statistic_.cpu_data(), Dtype(1.), this->blobs_[2]->mutable_cpu_data());
+	if( mini_batch_cnt_ >= pop_iter_ ) { // finish computing mean of mean & var
+	  mini_batch_cnt_ = 0;
+	  // unbiased variance
+	  Dtype m = Dtype(bottom[0]->count()/channels_);
+      caffe_cpu_scale(batch_statistic_.count(), m/(m-1), this->blobs_[3]->cpu_data(), this->blobs_[3]->mutable_cpu_data());
+	}
+  }
+  if( this->phase_ == TEST && !compute_population_ ) {
+    // use average variance
+    caffe_copy(batch_statistic_.count(), this->blobs_[3]->cpu_data(), batch_statistic_.mutable_cpu_data());
   }
   // add eps
   caffe_add_scalar(batch_statistic_.count(), var_eps_, batch_statistic_.mutable_cpu_data());

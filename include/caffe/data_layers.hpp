@@ -384,6 +384,7 @@ class AttentionDataLayer : public Layer<Dtype> {
   int num_class_;
   vector<std::pair<std::string, Datum > > image_database_cache_;
   int patch_id_;
+  vector<int> patch_index_;
   int total_patch_;
   bool random_sampling_;
 };

@@ -518,6 +518,94 @@ def make_vggm_prototxt_for_attention_net(file_name, num_classes, batch_size, pha
 	with open(file_name, 'w') as f:
 		print(net.to_proto(), file=f)
 
+def make_vggf_prototxt_for_attention_net(file_name, num_classes, batch_size, phase) :
+	net = caffe.NetSpec()
+	net.data, net.cls_label = L.AttentionData(root_folder="/data/PASCAL/VOCdevkit/VOC2007/", source="1__DATA/PASCAL/train.txt", 
+							  batch_size=batch_size, num_class=num_classes, input_size=224, cache_images=0,
+							  mean_value=[104,117,123], ntop=2)
+
+	for i in range(num_classes) :
+		lname = "dir%d_TL_label"%(i)
+		net.tops[lname] = L.ReLU(net.data, in_place=False)
+		lname = "dir%d_BR_label"%(i)
+		net.tops[lname] = L.ReLU(net.data, in_place=False)
+	
+	# net start !!
+	net.conv1, net.relu1 = conv_relu(net.data, 11, 64, stride=4)
+	net.norm1 = L.LRN(net.conv1, local_size=5, alpha=0.0005, beta=0.75, k=2)
+	net.pool1 = max_pool(net.norm1, 3, stride=2)
+	
+	net.conv2, net.relu2 = conv_relu(net.pool1, 5, 256, pad=2)
+	net.norm2 = L.LRN(net.conv2, local_size=5, alpha=0.0005, beta=0.75, k=2)
+	net.pool2 = max_pool(net.norm2, 3, stride=2)
+	
+	net.conv3, net.relu3 = conv_relu(net.pool2, 3, 256, pad=1)
+	net.conv4, net.relu4 = conv_relu(net.conv3, 3, 256, pad=1)
+	net.conv5, net.relu5 = conv_relu(net.conv4, 3, 256, pad=1)
+	net.pool5 = max_pool(net.conv5, 3, stride=2)
+	
+	net.conv6, net.relu6 = conv_relu(net.pool5, 6, 4096)
+	net.drop6 = L.Dropout(net.conv6, in_place=True)
+	net.conv7, net.relu7 = conv_relu(net.conv6, 1, 4096)
+	net.drop7 = L.Dropout(net.conv7, in_place=True)
+
+	# final layer creation
+	for i in range(num_classes) :
+		tname = "dir%d_TL"%(i)
+		net.tops[tname] = L.Convolution(net.drop7, kernel_size=1, num_output=4, 
+                          param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+					      weight_filler=dict(type='gaussian',std=0.01),
+						  bias_filler=dict(type='constant',value=0) )
+		tname = "dir%d_BR"%(i)
+		net.tops[tname] = L.Convolution(net.drop7, kernel_size=1, num_output=4, 
+                          param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+						  weight_filler=dict(type='gaussian',std=0.01),
+						  bias_filler=dict(type='constant',value=0) )
+	# final classification layer
+	net.cls = L.Convolution(net.drop7, kernel_size=1, num_output=num_classes+1, 
+              param=[dict(lr_mult=1, decay_mult=1),dict(lr_mult=2, decay_mult=0)],
+			  weight_filler=dict(type='gaussian',std=0.01),
+			  bias_filler=dict(type='constant',value=0) )
+
+	if phase is 'TRAIN' :
+		# loss layer creation
+		for i in range(num_classes) :
+			cname = "acc%d_TL"%(i)
+			pname = "loss%d_TL"%(i)
+			tname = "dir%d_TL"%(i)
+			lname = "dir%d_TL_label"%(i)
+			net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
+							  loss_param=dict(attention_net_ignore_label=4) )
+			net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
+							  include=dict(phase=1))
+			cname = "acc%d_BR"%(i)
+			pname = "loss%d_BR"%(i)
+			tname = "dir%d_BR"%(i)
+			lname = "dir%d_BR_label"%(i)
+			net.tops[pname] = L.SoftmaxWithLoss(net.tops[tname], net.tops[lname], loss_weight=1./3.,
+							  loss_param=dict(attention_net_ignore_label=4) )
+			net.tops[cname] = L.Accuracy(net.tops[tname], net.tops[lname], attention_net_ignore_label=4,
+							  include=dict(phase=1))
+		# classification loss layer
+		net.loss_cls = L.SoftmaxWithLoss(net.cls, net.cls_label, loss_weight=1./3., 
+					   loss_param=dict(attention_net_ignore_label=-1) )
+		net.acc_cls = L.Accuracy(net.cls, net.cls_label, attention_net_ignore_label=-1,
+					  include=dict(phase=1))
+	elif phase is 'TEST' :
+		for i in range(num_classes) :
+			pname = "prob%d_TL"%(i)
+			tname = "dir%d_TL"%(i)
+			net.tops[pname] = L.Softmax(net.tops[tname])
+			pname = "prob%d_BR"%(i)
+			tname = "dir%d_BR"%(i)
+			net.tops[pname] = L.Softmax(net.tops[tname])
+		# classification loss layer
+		net.prob_cls = L.Softmax(net.cls)
+	
+	# save prototxt file
+	with open(file_name, 'w') as f:
+		print(net.to_proto(), file=f)
+
 def make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size) :
 	net = caffe.NetSpec()
 	net.data, net.cls_label = L.AttentionData(root_folder="/data/PASCAL/VOCdevkit/VOC2007/", source="1__DATA/PASCAL/train.txt", 
@@ -612,6 +700,8 @@ def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
 		make_vgg_prototxt_for_attention_net(file_name, num_classes, batch_size)
 	elif model is 'vggm' :
 		make_vggm_prototxt_for_attention_net(file_name, num_classes, batch_size, phase)
+	elif model is 'vggf' :
+		make_vggf_prototxt_for_attention_net(file_name, num_classes, batch_size, phase)
 	elif model is 'bvlc_googlenet' :
 		make_googlenet_prototxt_for_attention_net(file_name, num_classes, batch_size, phase)
 	elif model is 'bvlc_googlenet_more_nonlinear' :
@@ -653,7 +743,7 @@ def make_attention_prototxt(proto_file_name, model, phase='TRAIN') :
 
 if __name__ == '__main__' :
 	prototxt_file_name = "train.prototxt"
-	make_attention_prototxt(prototxt_file_name, 'vggm', 'TRAIN')
+	make_attention_prototxt(prototxt_file_name, 'vggf', 'TRAIN')
 	#make_attention_prototxt(prototxt_file_name, 'bvlc_googlenet', 'TRAIN')
 	#make_attention_prototxt(prototxt_file_name, 'googlenet_bn', 'TEST')
 

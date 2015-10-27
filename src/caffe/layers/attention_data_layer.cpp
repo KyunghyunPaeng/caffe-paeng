@@ -63,6 +63,7 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   string hashtag;
   int image_index;
   int epoch_cnt = 0;
+  int patch_cnt = 0;
   if (!(infile >> hashtag >> image_index)) {
     LOG(FATAL) << "Source file is empty";
   }
@@ -104,6 +105,8 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 	  infile >> CLS;
 	  target_info.push_back(CLS);
 	  target_attention_.push_back(target_info); 
+	  patch_index_.push_back(patch_cnt);
+	  patch_cnt++;
     }
 	
     if (image_index % 1000 == 0) {
@@ -117,7 +120,12 @@ void AttentionDataLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LOG(INFO) << "# images : " << image_database_.size();
   LOG(INFO) << "Total epochs : " << epoch_cnt;
   LOG(INFO) << "Number of windows : " << total_patch_;
-  
+  CHECK_EQ(patch_index_.size(), total_patch_);
+
+  if( random_sampling_ ) {
+    caffe::rng_t* prefetch_rng = static_cast<caffe::rng_t*>(prefetch_rng_->generator());
+    shuffle(patch_index_.begin(), patch_index_.end(), prefetch_rng);  
+  }
   // prepare blobs' shape
   // image
   const int input_size = this->layer_param_.attention_data_param().input_size();
@@ -181,12 +189,7 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     //sample a window
     timer.Start();
-	// if random sampling ...
-	if( random_sampling_ && this->phase_ == TRAIN ) {
-	  const unsigned int rand_index = PrefetchRand();
-	  patch_id_ = rand_index % total_patch_;
-	}
-    vector<float> patch = target_attention_[patch_id_];
+    vector<float> patch = target_attention_[patch_index_[patch_id_]];
 	bool do_mirror = patch[5] == 1 ? true : false;
 	// check a current image index
 	if ( item_id==0 ) {
@@ -250,6 +253,8 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 /*
     //for visualizing patches
 	LOG(INFO) << "mirroring... " << do_mirror;
+	cv::namedWindow("ori",1);
+	cv::imshow("ori", cv_img);
 	cv::namedWindow("patch",1);
 	cv::imshow("patch", cv_cropped_img);
 	cv::waitKey(0);
@@ -291,7 +296,13 @@ void AttentionDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 	// get next patch
 	patch_id_++;
 	prev_image_id = curr_image_id;
-	if( patch_id_ >= total_patch_ ) patch_id_ = 0;
+	if( patch_id_ >= total_patch_ ) { // epoch check..
+	  patch_id_ = 0;
+      if( random_sampling_ ) { // re-shuffling
+        caffe::rng_t* prefetch_rng = static_cast<caffe::rng_t*>(prefetch_rng_->generator());
+        shuffle(patch_index_.begin(), patch_index_.end(), prefetch_rng);  
+      }
+	}
   }
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
