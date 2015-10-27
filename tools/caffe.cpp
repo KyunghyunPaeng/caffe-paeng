@@ -339,6 +339,72 @@ int test() {
 }
 RegisterBrewFunction(test);
 
+// Time: benchmark the execution time of a model. (ONLY FORWARD TIME!!!)
+int ftime() {
+  CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to time.";
+
+  // Set device id and mode
+  vector<int> gpus;
+  get_gpus(&gpus);
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+    Caffe::SetDevice(gpus[0]);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+  // Instantiate the caffe net.
+  Net<float> caffe_net(FLAGS_model, caffe::TEST);
+
+  // Do a clean forward and backward pass, so that memory allocation are done
+  // and future iterations will be more stable.
+  LOG(INFO) << "Performing Forward";
+  // Note that for the speed benchmark, we will assume that the network does
+  // not take any input blobs.
+  float initial_loss;
+  caffe_net.Forward(vector<Blob<float>*>(), &initial_loss);
+  LOG(INFO) << "Initial loss: " << initial_loss;
+
+  const vector<shared_ptr<Layer<float> > >& layers = caffe_net.layers();
+  const vector<vector<Blob<float>*> >& bottom_vecs = caffe_net.bottom_vecs();
+  const vector<vector<Blob<float>*> >& top_vecs = caffe_net.top_vecs();
+  LOG(INFO) << "*** Benchmark begins ***";
+  LOG(INFO) << "Testing for " << FLAGS_iterations << " iterations.";
+  Timer total_timer;
+  total_timer.Start();
+  Timer forward_timer;
+  Timer timer;
+  std::vector<double> forward_time_per_layer(layers.size(), 0.0);
+  double forward_time = 0.0;
+  for (int j = 0; j < FLAGS_iterations; ++j) {
+    Timer iter_timer;
+    iter_timer.Start();
+    forward_timer.Start();
+    for (int i = 0; i < layers.size(); ++i) {
+      timer.Start();
+      layers[i]->Forward(bottom_vecs[i], top_vecs[i]);
+      forward_time_per_layer[i] += timer.MicroSeconds();
+    }
+    forward_time += forward_timer.MicroSeconds();
+    LOG(INFO) << "Iteration: " << j + 1 << " forward time: "
+      << iter_timer.MilliSeconds() << " ms.";
+  }
+  LOG(INFO) << "Average time per layer: ";
+  for (int i = 0; i < layers.size(); ++i) {
+    const caffe::string& layername = layers[i]->layer_param().name();
+    LOG(INFO) << std::setfill(' ') << std::setw(10) << layername <<
+      "\tforward: " << forward_time_per_layer[i] / 1000 /
+      FLAGS_iterations << " ms.";
+  }
+  total_timer.Stop();
+  LOG(INFO) << "Average Forward pass: " << forward_time / 1000 /
+    FLAGS_iterations << " ms.";
+  LOG(INFO) << "Total Time: " << total_timer.MilliSeconds() << " ms.";
+  LOG(INFO) << "*** Benchmark ends ***";
+  return 0;
+}
+RegisterBrewFunction(ftime);
 
 // Time: benchmark the execution time of a model.
 int time() {
@@ -440,6 +506,7 @@ int main(int argc, char** argv) {
       "  test            score a model\n"
       "  compute_for_bn_inference            save training batches' mean & var for batch normalization inference\n"
       "  device_query    show GPU diagnostic information\n"
+      "  ftime            benchmark model only forward time"
       "  time            benchmark model execution time");
   // Run tool or show usage.
   caffe::GlobalInit(&argc, &argv);
