@@ -271,6 +271,9 @@ void BNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   caffe_div(buffer_blob_.count(), const_bottom_diff, buffer_blob_.cpu_data(), bottom_diff);
 
 }
+#ifdef CPU_ONLY
+STUB_GPU(BNLayer);
+#endif
 
 INSTANTIATE_CLASS(BNLayer);
 REGISTER_LAYER_CLASS(BN);
