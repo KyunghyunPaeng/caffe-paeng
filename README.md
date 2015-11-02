@@ -8,4 +8,4 @@ Added algorithms
 
 1. [Hole Algorithm] (http://arxiv.org/abs/1412.7062)
 2. [Batch Normalization] (http://arxiv.org/abs/1502.03167)
-3. [ROI pooling Layer, Smooth L1 Layer] (http://arxiv.org/abs/1506.01497)
+3. ROI pooling Layer, Smooth L1 Layer for [Fast RCNN] (http://arxiv.org/abs/1504.08083) and [Faster RCNN] (http://arxiv.org/abs/1506.01497)
