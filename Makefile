@@ -49,7 +49,7 @@ GTEST_SRC := src/gtest/gtest-all.cpp
 # TOOL_SRCS are the source files for the tool binaries
 TOOL_SRCS := $(shell find tools -name "*.cpp")
 # EXAMPLE_SRCS are the source files for the example binaries
-EXAMPLE_SRCS := $(shell find examples -name "*.cpp")
+#EXAMPLE_SRCS := $(shell find examples -name "*.cpp")
 # BUILD_INCLUDE_DIR contains any generated header files we want to include.
 BUILD_INCLUDE_DIR := $(BUILD_DIR)/src
 # PROTO_SRCS are the protocol buffer definitions
@@ -66,9 +66,9 @@ NONGEN_CXX_SRCS := $(shell find \
 	include/$(PROJECT) \
 	python/$(PROJECT) \
 	matlab/+$(PROJECT)/private \
-	examples \
 	tools \
 	-name "*.cpp" -or -name "*.hpp" -or -name "*.cu" -or -name "*.cuh")
+	#examples \
 LINT_SCRIPT := scripts/cpp_lint.py
 LINT_OUTPUT_DIR := $(BUILD_DIR)/.lint
 LINT_EXT := lint.txt
@@ -115,13 +115,13 @@ TEST_CXX_OBJS := $(addprefix $(BUILD_DIR)/, ${TEST_SRCS:.cpp=.o})
 TEST_CU_OBJS := $(addprefix $(BUILD_DIR)/cuda/, ${TEST_CU_SRCS:.cu=.o})
 TEST_OBJS := $(TEST_CXX_OBJS) $(TEST_CU_OBJS)
 GTEST_OBJ := $(addprefix $(BUILD_DIR)/, ${GTEST_SRC:.cpp=.o})
-EXAMPLE_OBJS := $(addprefix $(BUILD_DIR)/, ${EXAMPLE_SRCS:.cpp=.o})
+#EXAMPLE_OBJS := $(addprefix $(BUILD_DIR)/, ${EXAMPLE_SRCS:.cpp=.o})
 # Output files for automatic dependency generation
 DEPS := ${CXX_OBJS:.o=.d} ${CU_OBJS:.o=.d} ${TEST_CXX_OBJS:.o=.d} \
 	${TEST_CU_OBJS:.o=.d} $(BUILD_DIR)/${MAT$(PROJECT)_SO:.$(MAT_SO_EXT)=.d}
 # tool, example, and test bins
 TOOL_BINS := ${TOOL_OBJS:.o=.bin}
-EXAMPLE_BINS := ${EXAMPLE_OBJS:.o=.bin}
+#EXAMPLE_BINS := ${EXAMPLE_OBJS:.o=.bin}
 # symlinks to tool bins without the ".bin" extension
 TOOL_BIN_LINKS := ${TOOL_BINS:.bin=}
 # Put the test binaries in build/test for convenience.
@@ -141,10 +141,11 @@ WARNS_EXT := warnings.txt
 CXX_WARNS := $(addprefix $(BUILD_DIR)/, ${CXX_SRCS:.cpp=.o.$(WARNS_EXT)})
 CU_WARNS := $(addprefix $(BUILD_DIR)/cuda/, ${CU_SRCS:.cu=.o.$(WARNS_EXT)})
 TOOL_WARNS := $(addprefix $(BUILD_DIR)/, ${TOOL_SRCS:.cpp=.o.$(WARNS_EXT)})
-EXAMPLE_WARNS := $(addprefix $(BUILD_DIR)/, ${EXAMPLE_SRCS:.cpp=.o.$(WARNS_EXT)})
+#EXAMPLE_WARNS := $(addprefix $(BUILD_DIR)/, ${EXAMPLE_SRCS:.cpp=.o.$(WARNS_EXT)})
 TEST_WARNS := $(addprefix $(BUILD_DIR)/, ${TEST_SRCS:.cpp=.o.$(WARNS_EXT)})
 TEST_CU_WARNS := $(addprefix $(BUILD_DIR)/cuda/, ${TEST_CU_SRCS:.cu=.o.$(WARNS_EXT)})
-ALL_CXX_WARNS := $(CXX_WARNS) $(TOOL_WARNS) $(EXAMPLE_WARNS) $(TEST_WARNS)
+ALL_CXX_WARNS := $(CXX_WARNS) $(TOOL_WARNS) $(TEST_WARNS)
+#ALL_CXX_WARNS := $(CXX_WARNS) $(TOOL_WARNS) $(EXAMPLE_WARNS) $(TEST_WARNS)
 ALL_CU_WARNS := $(CU_WARNS) $(TEST_CU_WARNS)
 ALL_WARNS := $(ALL_CXX_WARNS) $(ALL_CU_WARNS)
 
@@ -204,10 +205,10 @@ DOXYGEN_SOURCES := $(shell find \
 	include/$(PROJECT) \
 	python/ \
 	matlab/ \
-	examples \
 	tools \
 	-name "*.cpp" -or -name "*.hpp" -or -name "*.cu" -or -name "*.cuh" -or \
         -name "*.py" -or -name "*.m")
+	#examples \
 DOXYGEN_SOURCES += $(DOXYGEN_CONFIG_FILE)
 
 
@@ -386,11 +387,14 @@ endif
 ##############################
 # Define build targets
 ##############################
-.PHONY: all lib test clean docs linecount lint lintclean tools examples $(DIST_ALIASES) \
+#.PHONY: all lib test clean docs linecount lint lintclean tools examples $(DIST_ALIASES) \
+
+.PHONY: all lib test clean docs linecount lint lintclean tools $(DIST_ALIASES) \
 	py mat py$(PROJECT) mat$(PROJECT) proto runtest \
 	superclean supercleanlist supercleanfiles warn everything
 
-all: lib tools examples
+all: lib tools 
+#examples
 
 lib: $(STATIC_NAME) $(DYNAMIC_NAME)
 
@@ -398,8 +402,9 @@ everything: $(EVERYTHING_TARGETS)
 
 linecount:
 	cloc --read-lang-def=$(PROJECT).cloc \
-		src/$(PROJECT) include/$(PROJECT) tools examples \
+		src/$(PROJECT) include/$(PROJECT) tools \
 		python matlab
+#examples \
 
 lint: $(EMPTY_LINT_REPORT)
 
@@ -435,7 +440,7 @@ test: $(TEST_ALL_BIN) $(TEST_ALL_DYNLINK_BIN) $(TEST_BINS)
 
 tools: $(TOOL_BINS) $(TOOL_BIN_LINKS)
 
-examples: $(EXAMPLE_BINS)
+#examples: $(EXAMPLE_BINS)
 
 py$(PROJECT): py
 
@@ -563,10 +568,10 @@ $(TOOL_BINS): %.bin : %.o | $(DYNAMIC_NAME)
 	$(Q)$(CXX) $< -o $@ $(LINKFLAGS) -l$(PROJECT) $(LDFLAGS) \
 		-Wl,-rpath,$(ORIGIN)/../lib
 
-$(EXAMPLE_BINS): %.bin : %.o | $(DYNAMIC_NAME)
-	@ echo CXX/LD -o $@
-	$(Q)$(CXX) $< -o $@ $(LINKFLAGS) -l$(PROJECT) $(LDFLAGS) \
-		-Wl,-rpath,$(ORIGIN)/../../lib
+#$(EXAMPLE_BINS): %.bin : %.o | $(DYNAMIC_NAME)
+#	@ echo CXX/LD -o $@
+#	$(Q)$(CXX) $< -o $@ $(LINKFLAGS) -l$(PROJECT) $(LDFLAGS) \
+#		-Wl,-rpath,$(ORIGIN)/../../lib
 
 proto: $(PROTO_GEN_CC) $(PROTO_GEN_HEADER)
 
@@ -623,7 +628,7 @@ $(DISTRIBUTE_DIR): all py | $(DISTRIBUTE_SUBDIRS)
 	cp $(PROTO_GEN_HEADER_SRCS) $(DISTRIBUTE_DIR)/include/caffe/proto
 	# add tool and example binaries
 	cp $(TOOL_BINS) $(DISTRIBUTE_DIR)/bin
-	cp $(EXAMPLE_BINS) $(DISTRIBUTE_DIR)/bin
+	#cp $(EXAMPLE_BINS) $(DISTRIBUTE_DIR)/bin
 	# add libraries
 	cp $(STATIC_NAME) $(DISTRIBUTE_DIR)/lib
 	cp $(DYNAMIC_NAME) $(DISTRIBUTE_DIR)/lib
