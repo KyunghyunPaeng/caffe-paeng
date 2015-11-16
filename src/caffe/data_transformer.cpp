@@ -81,8 +81,6 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   if (crop_size) {
     height = crop_size;
     width = crop_size;
-    //h_off = Rand(datum_height - crop_size + 1);
-    //w_off = Rand(datum_width - crop_size + 1);
     // We only do random crop when we do training.
     if (phase_ == TRAIN) {
       h_off = Rand(datum_height - crop_size + 1);
@@ -510,8 +508,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 template <typename Dtype>
 void DataTransformer<Dtype>::InitRand() {
   const bool needs_rand = param_.mirror() ||
-      (phase_ == TRAIN && param_.crop_size());
-      // param_.crop_size();
+        (phase_ == TRAIN && param_.crop_size());
   if (needs_rand) {
     const unsigned int rng_seed = caffe_rng_rand();
     rng_.reset(new Caffe::RNG(rng_seed));

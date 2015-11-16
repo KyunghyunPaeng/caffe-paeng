@@ -342,6 +342,7 @@ RegisterBrewFunction(test);
 // Time: benchmark the execution time of a model. (ONLY FORWARD TIME!!!)
 int ftime() {
   CHECK_GT(FLAGS_model.size(), 0) << "Need a model definition to time.";
+  CHECK_GT(FLAGS_weights.size(), 0) << "Need model weights to score.";
 
   // Set device id and mode
   vector<int> gpus;
@@ -356,6 +357,7 @@ int ftime() {
   }
   // Instantiate the caffe net.
   Net<float> caffe_net(FLAGS_model, caffe::TEST);
+  caffe_net.CopyTrainedLayersFrom(FLAGS_weights);
 
   // Do a clean forward and backward pass, so that memory allocation are done
   // and future iterations will be more stable.
@@ -369,6 +371,7 @@ int ftime() {
   const vector<shared_ptr<Layer<float> > >& layers = caffe_net.layers();
   const vector<vector<Blob<float>*> >& bottom_vecs = caffe_net.bottom_vecs();
   const vector<vector<Blob<float>*> >& top_vecs = caffe_net.top_vecs();
+  //const vector<string>& layer_names = caffe_net.layer_names();
   LOG(INFO) << "*** Benchmark begins ***";
   LOG(INFO) << "Testing for " << FLAGS_iterations << " iterations.";
   Timer total_timer;
@@ -377,13 +380,16 @@ int ftime() {
   Timer timer;
   std::vector<double> forward_time_per_layer(layers.size(), 0.0);
   double forward_time = 0.0;
+  //LOG(INFO) << "layer names: " << layer_names[layers.size()-1]; // cls layer
   for (int j = 0; j < FLAGS_iterations; ++j) {
     Timer iter_timer;
     iter_timer.Start();
     forward_timer.Start();
+    //for (int i = 0; i < layers.size(); ++i) {
     for (int i = 0; i < layers.size(); ++i) {
       timer.Start();
       layers[i]->Forward(bottom_vecs[i], top_vecs[i]);
+      //LOG(INFO) << "layer names: " << layer_names[i];
       forward_time_per_layer[i] += timer.MicroSeconds();
     }
     forward_time += forward_timer.MicroSeconds();
