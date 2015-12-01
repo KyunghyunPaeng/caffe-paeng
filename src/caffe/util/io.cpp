@@ -67,6 +67,22 @@ void WriteProtoToBinaryFile(const Message& proto, const char* filename) {
   CHECK(proto.SerializeToOstream(&output));
 }
 
+cv::Mat ReadLabelToCVMat(const string& filename,
+    const int height, const int width) {
+  cv::Mat cv_img;
+  cv::Mat cv_img_origin = cv::imread(filename, CV_LOAD_IMAGE_UNCHANGED);
+  if (!cv_img_origin.data) {
+    LOG(ERROR) << "Could not open or find file " << filename;
+    return cv_img_origin;
+  }
+  if (height > 0 && width > 0) {
+    cv::resize(cv_img_origin, cv_img, cv::Size(width, height), 0, 0, cv::INTER_NEAREST);
+  } else {
+    cv_img = cv_img_origin;
+  }
+  return cv_img;
+}
+
 cv::Mat ReadImageToCVMat(const string& filename,
     const int height, const int width, const bool is_color) {
   cv::Mat cv_img;

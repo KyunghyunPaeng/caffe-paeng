@@ -389,6 +389,45 @@ class AttentionDataLayer : public Layer<Dtype> {
   bool random_sampling_;
 };
 
+/**
+ * @brief Provides for Segmentation Network Data from list files
+ *
+ * TODO(dox): thorough documentation for Forward and proto params.
+ */
+template <typename Dtype>
+class SegDataLayer : public Layer<Dtype> {
+ public:
+  explicit SegDataLayer(const LayerParameter& param)
+      : Layer<Dtype>(param) {}
+  virtual ~SegDataLayer();
+  virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  // Data layers should be shared by multiple solvers in parallel
+  virtual inline bool ShareInParallel() const { return true; }
+  // Data layers have no bottoms, so reshaping is trivial.
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top) {}
+
+  virtual inline const char* type() const { return "SegData"; }
+  virtual inline int ExactNumBottomBlobs() const { return 0; }
+
+ protected:
+  virtual unsigned int PrefetchRand();
+  virtual void ShuffleImages();
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {}
+
+  shared_ptr<Caffe::RNG> prefetch_rng_;
+  vector<std::pair<std::string, std::string > > image_database_;
+  vector<Dtype> mean_values_;
+  bool has_mean_values_;
+  int sample_cnt_;
+};
+
 }  // namespace caffe
 
 #endif  // CAFFE_DATA_LAYERS_HPP_

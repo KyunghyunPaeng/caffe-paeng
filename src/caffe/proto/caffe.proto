@@ -394,6 +394,7 @@ message LayerParameter {
   optional UnpoolingParameter unpooling_param = 143;
   optional DenseCRFParameter dense_crf_param = 144;
   optional InterpParameter interp_param = 145;
+  optional SegDataParameter seg_data_param = 147;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1049,6 +1050,30 @@ message AttentionDataParameter {
   optional string root_folder = 13 [default = ""];
   // mini-batch generation scheme
   optional bool random_sampling = 14 [default = false];
+}
+
+message SegDataParameter {
+  // Specify the data source.
+  optional string source = 1;
+  // For data pre-processing, we can do simple scaling and subtracting the
+  // data mean, if provided. Note that the mean subtraction is always carried
+  // out before scaling.
+  optional float scale = 2 [default = 1];
+  // Specify the batch size.
+  optional uint32 batch_size = 3;
+  repeated float mean_value = 4;
+  // It will also resize images if new_height or new_width are not zero.
+  optional uint32 new_height = 5 [default = 0];
+  optional uint32 new_width = 6 [default = 0];
+  optional uint32 crop_size = 7 [default = 0];
+  optional uint32 stride = 8;
+  // Specify the number of classes. [except for background class!!]
+  optional uint32 num_class = 9; 
+  // append root_folder to locate images
+  optional string image_root_folder = 10 [default = ""];
+  optional string label_root_folder = 11 [default = ""];
+  // mini-batch generation scheme
+  optional bool shuffle = 12 [default = true];
 }
 
 message WindowDataParameter {
