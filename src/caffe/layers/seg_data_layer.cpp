@@ -115,6 +115,7 @@ void SegDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const int new_height = this->layer_param_.seg_data_param().new_height();
   const int new_width = this->layer_param_.seg_data_param().new_width();
   const int crop_size = this->layer_param_.seg_data_param().crop_size();
+  const bool mirror = this->layer_param_.seg_data_param().mirror();
   //const int stride = this->layer_param_.seg_data_param().stride();
   //const int num_class = this->layer_param_.seg_data_param().num_class();
   // image data
@@ -126,10 +127,16 @@ void SegDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     std::string image_path = image_database_[sample_cnt_].first;
     std::string label_path = image_database_[sample_cnt_].second;
-
+    bool do_mirror = mirror && PrefetchRand() % 2;
+    //LOG(INFO) << do_mirror;
+	//LOG(INFO) << image_path;
     cv_image = ReadImageToCVMat( image_path, new_height, new_width, true );
     cv_label = ReadLabelToCVMat( label_path, new_height, new_width );
-/*  
+    if(do_mirror) {
+      cv::flip(cv_image, cv_image, 1);
+      cv::flip(cv_label, cv_label, 1);
+    }
+/*
     cv::Mat cv_mask = cv::Mat::zeros( cv_label.rows, cv_label.cols, CV_8UC1);
     for (int h = 0; h < cv_label.rows; ++h) {
       const uchar* label_ptr = cv_label.ptr<uchar>(h);

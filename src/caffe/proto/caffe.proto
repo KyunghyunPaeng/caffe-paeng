@@ -1074,6 +1074,7 @@ message SegDataParameter {
   optional string label_root_folder = 11 [default = ""];
   // mini-batch generation scheme
   optional bool shuffle = 12 [default = true];
+  optional bool mirror = 13 [default = false];
 }
 
 message WindowDataParameter {
