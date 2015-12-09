@@ -116,6 +116,7 @@ void SegDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const int new_width = this->layer_param_.seg_data_param().new_width();
   const int crop_size = this->layer_param_.seg_data_param().crop_size();
   const bool mirror = this->layer_param_.seg_data_param().mirror();
+  const bool is_shuffle = this->layer_param_.seg_data_param().shuffle();
   //const int stride = this->layer_param_.seg_data_param().stride();
   //const int num_class = this->layer_param_.seg_data_param().num_class();
   // image data
@@ -192,7 +193,9 @@ void SegDataLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     sample_cnt_++;
     if( sample_cnt_ >= image_database_.size() ) {
       sample_cnt_ = 0;
-      ShuffleImages();
+      if (is_shuffle) {
+        ShuffleImages();
+      }
     }
   }
 }
