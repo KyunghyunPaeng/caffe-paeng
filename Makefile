@@ -65,10 +65,10 @@ NONGEN_CXX_SRCS := $(shell find \
 	src/$(PROJECT) \
 	include/$(PROJECT) \
 	python/$(PROJECT) \
-	matlab/+$(PROJECT)/private \
 	tools \
 	-name "*.cpp" -or -name "*.hpp" -or -name "*.cu" -or -name "*.cuh")
 	#examples \
+	#matlab/+$(PROJECT)/private \
 LINT_SCRIPT := scripts/cpp_lint.py
 LINT_OUTPUT_DIR := $(BUILD_DIR)/.lint
 LINT_EXT := lint.txt
@@ -80,11 +80,11 @@ PY$(PROJECT)_SRC := python/$(PROJECT)/_$(PROJECT).cpp
 PY$(PROJECT)_SO := python/$(PROJECT)/_$(PROJECT).so
 PY$(PROJECT)_HXX := include/$(PROJECT)/python_layer.hpp
 # MAT$(PROJECT)_SRC is the mex entrance point of matlab package for $(PROJECT)
-MAT$(PROJECT)_SRC := matlab/+$(PROJECT)/private/$(PROJECT)_.cpp
-ifneq ($(MATLAB_DIR),)
-	MAT_SO_EXT := $(shell $(MATLAB_DIR)/bin/mexext)
-endif
-MAT$(PROJECT)_SO := matlab/+$(PROJECT)/private/$(PROJECT)_.$(MAT_SO_EXT)
+#MAT$(PROJECT)_SRC := matlab/+$(PROJECT)/private/$(PROJECT)_.cpp
+#ifneq ($(MATLAB_DIR),)
+#	MAT_SO_EXT := $(shell $(MATLAB_DIR)/bin/mexext)
+#endif
+#MAT$(PROJECT)_SO := matlab/+$(PROJECT)/private/$(PROJECT)_.$(MAT_SO_EXT)
 
 ##############################
 # Derive generated files
@@ -204,11 +204,11 @@ DOXYGEN_SOURCES := $(shell find \
 	src/$(PROJECT) \
 	include/$(PROJECT) \
 	python/ \
-	matlab/ \
 	tools \
 	-name "*.cpp" -or -name "*.hpp" -or -name "*.cu" -or -name "*.cuh" -or \
         -name "*.py" -or -name "*.m")
 	#examples \
+	#matlab/ \
 DOXYGEN_SOURCES += $(DOXYGEN_CONFIG_FILE)
 
 
@@ -403,7 +403,8 @@ everything: $(EVERYTHING_TARGETS)
 linecount:
 	cloc --read-lang-def=$(PROJECT).cloc \
 		src/$(PROJECT) include/$(PROJECT) tools \
-		python matlab
+		python 
+#matlab
 #examples \
 
 lint: $(EMPTY_LINT_REPORT)
@@ -478,8 +479,8 @@ runtest: $(TEST_ALL_BIN)
 pytest: py
 	cd python; python -m unittest discover -s caffe/test
 	
-mattest: mat
-	cd matlab; $(MATLAB_DIR)/bin/matlab -nodisplay -r 'caffe.run_tests(), exit()'
+#mattest: mat
+#	cd matlab; $(MATLAB_DIR)/bin/matlab -nodisplay -r 'caffe.run_tests(), exit()'
 
 warn: $(EMPTY_WARN_REPORT)
 
